@@ -1,0 +1,64 @@
+/* CSS Login - Optimized for Glassmorphism Red-Orange */
+body {
+    background: #0f172a !important; /* Paksa background gelap */
+}
+
+#login-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent; /* Hilangkan background bawaan container */
+}
+
+/* Glass Card Core */
+.glass-card {
+    background: rgba(255, 255, 255, 0.03) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Animasi Background Blobs */
+.bg-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(70px);
+    z-index: 0;
+    opacity: 0.5;
+}
+.blob-1 { width: 350px; height: 350px; background: #FF4B2B; top: -100px; left: -100px; }
+.blob-2 { width: 400px; height: 400px; background: #FF8008; bottom: -100px; right: -50px; }
+
+/* Switcher Karyawan/Admin */
+.segmented-control {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 14px;
+    padding: 4px;
+    display: flex;
+    position: relative;
+    z-index: 10;
+}
+
+.selection-slider {
+    position: absolute;
+    height: calc(100% - 8px);
+    width: calc(50% - 4px);
+    background: white;
+    border-radius: 10px;
+    top: 4px;
+    left: 4px;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 0;
+}
+
+#role-admin:checked ~ .selection-slider { transform: translateX(100%); }
+#role-employee:checked ~ label[for="role-employee"],
+#role-admin:checked ~ label[for="role-admin"] {
+    color: #1a1a1a !important;
+    font-weight: 600;
+}
+
+/* Sembunyikan container app saat login aktif */
+.hidden { display: none !important; }
