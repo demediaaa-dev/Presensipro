@@ -27,14 +27,15 @@ const FaceService = {
 
   async initCamera() {
     const video = document.getElementById('video');
+    if (!video) return console.error("Elemen video tidak ditemukan!");
+    
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "user", width: 400, height: 400 } 
+        video: { facingMode: "user" } 
       });
       video.srcObject = this.stream;
     } catch (err) {
-      alert("Gagal mengakses kamera: " + err.message);
-      App.closePresence();
+      App.showToast("Kamera diblokir!", "error");
     }
   },
 
@@ -45,25 +46,31 @@ const FaceService = {
   },
 
   async processNow() {
-    this.showToast("Memproses lokasi..."); // Gunakan App.showToast jika ingin konsisten
+    App.showToast("Memindai Wajah...", "success");
     
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      // Diubah dari API.post ke API.call
-      const res = await API.call({
-        action: 'submit_attendance',
+    // Logika Sinkronisasi Database (Step 1 yang tadi)
+    try {
+      // 1. Ambil GPS
+      const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej));
+      
+      // 2. Kirim ke Backend GAS
+      const res = await API.post({
+        action: 'submitAttendance',
         user_id: App.user.User_ID,
         lat: pos.coords.latitude,
-        lng: pos.coords.longitude
+        lng: pos.coords.longitude,
+        // Face_Descriptor: hasil_scan_wajah
       });
 
       if (res.success) {
-        App.showToast("Presensi Berhasil!", "success");
+        App.showToast("Berhasil! Selamat Bekerja", "success");
         App.closePresence();
+        App.render();
       } else {
         App.showToast(res.message, "error");
       }
-    }, (err) => {
-      App.showToast("Gagal mengambil GPS. Pastikan izin lokasi aktif.", "error");
-    });
+    } catch (e) {
+      App.showToast("Gagal verifikasi lokasi", "error");
+    }
   }
 };
