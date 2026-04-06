@@ -42,21 +42,21 @@ const App = {
   },
 
   async checkLocationAccess() {
-    if (this.user && this.user.Role && this.user.Role.toLowerCase() !== 'admin') {
-      try {
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-          const res = await API.call({
-            action: 'check_radius',
-            user_id: this.user.User_ID || this.user.id,
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude
-          });
+    if (this.user && this.user.Role.toLowerCase() !== 'admin') {
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const res = await API.call({
+          action: 'check_radius',
+          user_id: this.user.User_ID,
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        });
+        
+        // Hanya render jika ada PERUBAHAN status radius
+        if (this.isWithinRadius !== res.success) {
           this.isWithinRadius = res.success;
           this.render();
-        });
-      } catch (e) {
-        console.error("Gagal verifikasi lokasi otomatis");
-      }
+        }
+      });
     }
   },
 
