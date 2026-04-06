@@ -69,14 +69,13 @@ const App = {
 
   render() {
     const root = document.getElementById('app');
-    if (!root) return;
-
     if (this.currentPage === 'login') {
       root.innerHTML = this.viewLogin();
-    } else if (this.user) {
-      root.innerHTML = (this.user.Role && this.user.Role.toLowerCase() === 'admin') ? this.viewAdmin() : this.viewUser();
+    } else if (this.currentPage === 'history') {
+      root.innerHTML = this.viewHistory();
+    } else {
+      root.innerHTML = (this.user.Role.toLowerCase() === 'admin') ? this.viewAdmin() : this.viewUser();
     }
-    
     lucide.createIcons();
     this.startClock();
   },
@@ -500,6 +499,85 @@ processOutConfirmation() {
     this.render(); 
   }
 };
+
+historyTab: 'presensi', // default tab
+  historyData: { presensi: [], dinas: [] },
+
+  async openHistory() {
+    this.currentPage = 'history';
+    this.render(); // Render loading state dulu
+    try {
+      const res = await API.call({ 
+        action: 'get_history', 
+        user_id: this.user.User_ID || this.user.id 
+      });
+      if (res.success) {
+        this.historyData = res;
+        this.render();
+      }
+    } catch (e) {
+      this.showToast("Gagal memuat histori", "error");
+    }
+  },
+
+  viewHistory() {
+    const isPresensi = this.historyTab === 'presensi';
+    
+    return `
+      <div class="header-red-section" style="background:#dc2626; height:120px; position:absolute; top:0; left:0; right:0; z-index:-1;"></div>
+      <div class="max-w-md mx-auto min-h-screen p-5 pb-10">
+        
+        <header class="flex items-center gap-4 mb-8 text-white">
+          <button onclick="App.currentPage='dashboard'; App.render()" class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center active:scale-90">
+            <i data-lucide="chevron-left"></i>
+          </button>
+          <h1 class="text-xl font-black uppercase tracking-tighter">Riwayat Aktivitas</h1>
+        </header>
+
+        <div class="flex bg-gray-100 p-1.5 rounded-[2rem] mb-6">
+          <button onclick="App.historyTab='presensi'; App.render()" class="flex-1 py-3 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${isPresensi ? 'bg-white text-red-600 shadow-sm' : 'text-gray-400'}">Presensi</button>
+          <button onclick="App.historyTab='dinas'; App.render()" class="flex-1 py-3 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${!isPresensi ? 'bg-white text-red-600 shadow-sm' : 'text-gray-400'}">Dinas Luar</button>
+        </div>
+
+        <div class="space-y-4">
+          ${isPresensi ? this.renderPresensiList() : this.renderDinasList()}
+        </div>
+      </div>
+    `;
+  },
+
+  renderPresensiList() {
+    if (this.historyData.presensi.length === 0) return `<p class="text-center text-gray-400 py-10 text-xs font-bold uppercase">Belum ada data</p>`;
+    return this.historyData.presensi.map(item => `
+      <div class="bg-white p-5 rounded-3xl border border-gray-50 shadow-sm flex justify-between items-center">
+        <div>
+          <p class="text-[10px] font-black text-gray-400 uppercase mb-1">${item.date}</p>
+          <div class="flex gap-4">
+            <div><p class="text-[9px] text-gray-400 uppercase font-bold">Masuk</p><p class="text-sm font-black text-gray-800">${item.in}</p></div>
+            <div><p class="text-[9px] text-gray-400 uppercase font-bold">Pulang</p><p class="text-sm font-black text-gray-800">${item.out || '--:--'}</p></div>
+          </div>
+        </div>
+        <span class="px-3 py-1.5 bg-green-50 text-green-600 text-[9px] font-black rounded-lg uppercase">${item.status}</span>
+      </div>
+    `).join('');
+  },
+
+  renderDinasList() {
+    if (this.historyData.dinas.length === 0) return `<p class="text-center text-gray-400 py-10 text-xs font-bold uppercase">Belum ada data</p>`;
+    return this.historyData.dinas.map(item => {
+      const s = item.status.toLowerCase();
+      const color = s === 'approved' ? 'text-green-600 bg-green-50' : (s === 'rejected' ? 'text-red-600 bg-red-50' : 'text-orange-600 bg-orange-50');
+      return `
+        <div class="bg-white p-5 rounded-3xl border border-gray-50 shadow-sm">
+          <div class="flex justify-between items-start mb-2">
+            <p class="text-[10px] font-black text-gray-400 uppercase">${item.date}</p>
+            <span class="px-3 py-1 text-[8px] font-black rounded-lg uppercase ${color}">${item.status}</span>
+          </div>
+          <p class="text-sm font-black text-gray-800 uppercase tracking-tight">${item.title}</p>
+        </div>
+      `;
+    }).join('');
+  }
 
 // Menjalankan inisialisasi aplikasi
 document.addEventListener('DOMContentLoaded', () => App.init());
