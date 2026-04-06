@@ -199,7 +199,7 @@ const App = {
               ${this.createMenuBtn('Dinas', 'briefcase', 'App.openDinasForm()')}
               ${this.createMenuBtn('Izin', 'file-text')}
               ${this.createMenuBtn('Jurnal', 'edit-3')}
-              ${this.createMenuBtn('Histori', 'history')}
+              ${this.createMenuBtn('Histori', 'history', 'App.openHistory()')}
            </div>
         </div>
 
