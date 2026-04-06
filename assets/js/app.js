@@ -6,19 +6,19 @@ const App = {
   attendanceStatus: 'none', 
   dataStats: { employees: 0, present: 0, leaves: 0 },
 
-  init() {
+  async init() {
     const saved = localStorage.getItem('sipanda_session');
     if (saved) {
-      try {
-        this.user = JSON.parse(saved);
-        this.currentPage = 'dashboard';
-        this.checkLocationAccess();
-        this.getAttendanceStatus(); 
-      } catch (e) {
-        localStorage.removeItem('sipanda_session');
-      }
+      this.user = JSON.parse(saved);
+      this.currentPage = 'dashboard';
+      
+      // Tunggu kedua data ini selesai diambil baru render
+      await Promise.all([
+        this.getAttendanceStatus(),
+        this.checkLocationAccess()
+      ]);
     }
-    this.render();
+    this.render(); // Render dipanggil SETELAH data siap
   },
 
   // --- PERBAIKAN DI SINI: Tutup kurung kurawal dan try catch yang benar ---
