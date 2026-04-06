@@ -1,44 +1,45 @@
 const FaceService = {
   stream: null,
 
-  async initCamera() {
+   async processNow() {
     const video = document.getElementById('video');
-    if (!video) return console.error("Elemen video tidak ditemukan!");
     
-    // Reset video state
-    video.pause();
-    video.srcObject = null;
+    // EFEK FREEZE: Cukup di-pause agar gambar terakhir tetap muncul (tidak hitam)
+    if (video) {
+      video.pause(); 
+    }
 
-    const constraints = { 
-      video: { 
-        facingMode: "user",
-        // Hapus spesifikasi width/height ideal sementara untuk tes
-      },
-      audio: false 
-    };
+    App.showToast("Memverifikasi...", "success");
 
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-      video.srcObject = this.stream;
-      
-      // Gunakan event 'loadeddata' bukan 'metadata' agar lebih pasti
-      video.addEventListener('loadeddata', async () => {
-        try {
-          await video.play();
-          console.log("Video playing successfully");
-        } catch (err) {
-          console.error("Autoplay failed, trying manual play:", err);
-          // Jika gagal autoplay, biasanya butuh interaksi user
-        }
+      const pos = await new Promise((res, rej) => {
+        navigator.geolocation.getCurrentPosition(res, rej, { 
+          enableHighAccuracy: true,
+          timeout: 5000 
+        });
       });
 
-    } catch (err) {
-      console.error("Gagal akses kamera:", err);
-      if (err.name === 'NotAllowedError') {
-        App.showToast("Izin kamera ditolak browser!", "error");
+      const res = await API.call({
+        action: 'submit_attendance',
+        user_id: App.user.User_ID,
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude
+      });
+
+      if (res.success) {
+        App.showToast("Presensi Berhasil!", "success");
+        setTimeout(() => {
+          App.closePresence();
+          App.render();
+        }, 1200);
       } else {
-        App.showToast("Kamera tidak terdeteksi", "error");
+        App.showToast(res.message, "error");
+        // Jika gagal (misal luar radius), jalankan lagi videonya
+        video.play();
       }
+    } catch (e) {
+      App.showToast("GPS Gagal!", "error");
+      if(video) video.play();
     }
   },
 
