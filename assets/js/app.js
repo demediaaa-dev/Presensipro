@@ -286,15 +286,57 @@ const App = {
 
   async submitDinas() {
     const title = document.getElementById('dinas_title').value;
-    const file = document.getElementById('dinas_file').files[0];
-    if (!title || !file) return this.showToast("Isi data dan lampirkan foto!", "error");
+    const fileInput = document.getElementById('dinas_file');
+    const file = fileInput.files[0];
+    
+    if (!title || !file) return this.showToast("Isi kegiatan dan lampirkan foto!", "error");
 
-    this.showToast("Mengirim Laporan...", "success");
-    // Simulasi pengiriman (Bisa dihubungkan ke API.call action: 'submit_dinas')
-    setTimeout(() => {
-      this.showToast("Laporan Dinas Berhasil!");
-      this.closeDinasForm();
-    }, 1500);
+    // Efek Loading pada tombol
+    const btn = document.querySelector('button[onclick="App.submitDinas()"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto"></div>`;
+
+    try {
+      // 1. Ambil Lokasi Terkini
+      const pos = await new Promise((res, rej) => {
+        navigator.geolocation.getCurrentPosition(res, rej);
+      });
+
+      // 2. Konversi File ke Base64
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const base64File = reader.result;
+
+        // 3. Kirim ke API
+        const res = await API.call({
+          action: 'submit_dinas',
+          user_id: this.user.User_ID,
+          title: title,
+          fileData: base64File,
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        });
+
+        if (res.success) {
+          this.showToast("Laporan Berhasil Terkirim!", "success");
+          this.closeDinasForm();
+          // Reset form
+          document.getElementById('dinas_title').value = "";
+          document.getElementById('file-name').innerText = "Pilih Foto Kegiatan";
+        } else {
+          this.showToast(res.message, "error");
+        }
+        
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      };
+    } catch (e) {
+      this.showToast("Gagal memproses laporan", "error");
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
   },
 
   showToast(msg, type = "success") {
