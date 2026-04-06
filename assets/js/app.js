@@ -13,21 +13,23 @@ const App = {
     this.render();
   },
 
+// Di dalam app.js
+
   render() {
     const root = document.getElementById('app');
+    // Pilih view berdasarkan halaman
     if (this.currentPage === 'login') {
       root.innerHTML = this.viewLogin();
     } else {
-      // Sinkronisasi dengan skema: Cek Role
-      if (this.user.Role.toLowerCase() === 'admin') {
-        root.innerHTML = this.viewAdmin();
-      } else {
-        root.innerHTML = this.viewUser();
-      }
+      root.innerHTML = (this.user.Role.toLowerCase() === 'admin') ? this.viewAdmin() : this.viewUser();
     }
-    lucide.createIcons(); // Re-render icons
+    
+    // PENTING: Render icon setelah HTML terpasang
+    lucide.createIcons();
     this.startClock();
   },
+
+
 
   // --- VIEW: LOGIN (Dengan Fitur Enter & Toggle Password) ---
   viewLogin() {
@@ -288,19 +290,26 @@ const App = {
   },
 
   startPresence() {
-    // 1. Munculkan Overlay & Sheet
     const overlay = document.getElementById('modal-overlay');
     const sheet = document.getElementById('presence-sheet');
     
-    if(overlay && sheet) {
+    if (overlay && sheet) {
+      // 1. Tambahkan class active (pastikan CSS transition ada)
       overlay.classList.add('active');
       sheet.classList.add('active');
-      
-      // 2. Nyalakan Kamera
+      overlay.style.visibility = 'visible';
+      overlay.style.opacity = '1';
+      sheet.style.transform = 'translateY(0)';
+
+      // 2. Jalankan Kamera dari FaceService
       if (typeof FaceService !== 'undefined') {
         FaceService.initCamera();
       }
+      
+      // 3. Render ulang icon khusus di dalam modal yang baru muncul
       lucide.createIcons();
+    } else {
+      console.error("Elemen modal tidak ditemukan di DOM!");
     }
   },
 
@@ -308,14 +317,21 @@ const App = {
     const overlay = document.getElementById('modal-overlay');
     const sheet = document.getElementById('presence-sheet');
     
-    if(overlay && sheet) {
-      overlay.classList.remove('active');
-      sheet.classList.remove('active');
+    if (overlay && sheet) {
+      overlay.style.opacity = '0';
+      overlay.style.visibility = 'hidden';
+      sheet.style.transform = 'translateY(100%)';
+      
+      setTimeout(() => {
+        overlay.classList.remove('active');
+        sheet.classList.remove('active');
+      }, 300);
+
       if (typeof FaceService !== 'undefined') {
         FaceService.stopCamera();
       }
     }
-  } 
+  }
 };
 
 
