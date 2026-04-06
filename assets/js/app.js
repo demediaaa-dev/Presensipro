@@ -18,21 +18,17 @@ const App = {
   },
 
   // Cek apakah user sudah absen masuk/pulang hari ini
-  async getAttendanceStatus() {
-    if (!this.user || this.user.Role.toLowerCase() === 'admin') return;
-    try {
-      const res = await API.call({
-        action: 'get_status',
-        user_id: this.user.User_ID || this.user.id // Handle variasi key ID
-      });
-      if (res.success) {
-        this.attendanceStatus = res.status; // 'none', 'in', atau 'out'
-        this.render();
-      }
-    } catch (e) {
-      console.error("Gagal mengambil status presensi");
-    }
-  },
+async getAttendanceStatus() {
+  // Cek apakah user sudah login dan punya ID
+  const idPegawai = this.user?.User_ID || this.user?.id;
+  
+  if (!idPegawai) return;
+
+  try {
+    const res = await API.call({
+      action: 'get_status',
+      user_id: idPegawai // Jangan biarkan undefined terkirim
+    });
 
   async checkLocationAccess() {
     if (this.user && this.user.Role.toLowerCase() !== 'admin') {
