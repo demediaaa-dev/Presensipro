@@ -310,23 +310,59 @@ const App = {
     }
   },
 
-  startPresence() {
-    if (this.attendanceStatus === 'in') {
-      if (!confirm("Konfirmasi Presensi Pulang?")) return;
-    }
+// Ganti fungsi startPresence yang lama
+startPresence() {
+  // Jika sudah absen masuk, tampilkan popup konfirmasi kustom (bukan confirm default)
+  if (this.attendanceStatus === 'in') {
+    this.openConfirmOut();
+    return;
+  }
+  
+  // Jika belum absen, langsung buka kamera
+  this.openCameraModal();
+},
 
-    const overlay = document.getElementById('modal-overlay');
-    const sheet = document.getElementById('presence-sheet');
-    if (overlay && sheet) {
-      overlay.style.visibility = 'visible';
-      overlay.style.opacity = '1';
-      sheet.style.transform = 'translateY(0)';
-      if (typeof FaceService !== 'undefined') FaceService.initCamera();
-      lucide.createIcons();
-    } else {
-      this.showToast("Elemen modal presensi tidak ditemukan!", "error");
-    }
-  },
+// Fungsi untuk membuka Kamera Modal
+openCameraModal() {
+  const overlay = document.getElementById('modal-overlay');
+  const sheet = document.getElementById('presence-sheet');
+  if (overlay && sheet) {
+    overlay.style.visibility = 'visible';
+    overlay.style.opacity = '1';
+    sheet.style.transform = 'translateY(0)';
+    if (typeof FaceService !== 'undefined') FaceService.initCamera();
+    lucide.createIcons();
+  }
+},
+
+// Fungsi Modal Konfirmasi Pulang
+openConfirmOut() {
+  const overlay = document.getElementById('confirm-out-overlay');
+  const sheet = document.getElementById('confirm-out-sheet');
+  overlay.classList.remove('hidden');
+  setTimeout(() => {
+    sheet.classList.remove('translate-y-full');
+  }, 10);
+  lucide.createIcons();
+},
+
+closeConfirmOut() {
+  const overlay = document.getElementById('confirm-out-overlay');
+  const sheet = document.getElementById('confirm-out-sheet');
+  sheet.classList.add('translate-y-full');
+  setTimeout(() => {
+    overlay.classList.add('hidden');
+  }, 300);
+},
+
+// Fungsi yang dipanggil saat tombol "Ya, Presensi Pulang" diklik
+processOutConfirmation() {
+  this.closeConfirmOut();
+  // Beri jeda sedikit agar transisi modal tutup selesai sebelum kamera buka
+  setTimeout(() => {
+    this.openCameraModal();
+  }, 400);
+},
 
   onPresenceSuccess() {
     this.showToast("Presensi Berhasil!");
