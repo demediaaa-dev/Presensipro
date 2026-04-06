@@ -5,29 +5,40 @@ const FaceService = {
     const video = document.getElementById('video');
     if (!video) return console.error("Elemen video tidak ditemukan!");
     
-    try {
-      // Hentikan stream lama jika masih ada (pembersihan)
-      this.stopCamera();
+    // Reset video state
+    video.pause();
+    video.srcObject = null;
 
-      this.stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: "user",
-          width: { ideal: 640 },
-          height: { ideal: 640 }
-        },
-        audio: false 
+    const constraints = { 
+      video: { 
+        facingMode: "user",
+        // Hapus spesifikasi width/height ideal sementara untuk tes
+      },
+      audio: false 
+    };
+
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+      video.srcObject = this.stream;
+      
+      // Gunakan event 'loadeddata' bukan 'metadata' agar lebih pasti
+      video.addEventListener('loadeddata', async () => {
+        try {
+          await video.play();
+          console.log("Video playing successfully");
+        } catch (err) {
+          console.error("Autoplay failed, trying manual play:", err);
+          // Jika gagal autoplay, biasanya butuh interaksi user
+        }
       });
 
-      video.srcObject = this.stream;
-
-      // PENTING: Tunggu video siap lalu jalankan play()
-      video.onloadedmetadata = () => {
-        video.play().catch(e => console.error("Gagal auto-play:", e));
-      };
-
     } catch (err) {
-      console.error("Kamera Error:", err);
-      App.showToast("Kamera diblokir atau tidak ditemukan!", "error");
+      console.error("Gagal akses kamera:", err);
+      if (err.name === 'NotAllowedError') {
+        App.showToast("Izin kamera ditolak browser!", "error");
+      } else {
+        App.showToast("Kamera tidak terdeteksi", "error");
+      }
     }
   },
 
