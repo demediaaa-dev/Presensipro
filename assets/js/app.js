@@ -469,11 +469,30 @@ processOutConfirmation() {
     }
   },
 
-  logout() { 
-    localStorage.removeItem('sipanda_session'); 
-    this.user = null; 
-    this.currentPage = 'login'; 
-    this.render(); 
+  logout() {
+    const overlay = document.getElementById('logout-overlay');
+    const sheet = document.getElementById('logout-sheet');
+    overlay.classList.remove('hidden');
+    setTimeout(() => sheet.classList.remove('translate-y-full'), 10);
+    lucide.createIcons();
+  },
+
+  closeLogoutModal() {
+    const overlay = document.getElementById('logout-overlay');
+    const sheet = document.getElementById('logout-sheet');
+    sheet.classList.add('translate-y-full');
+    setTimeout(() => overlay.classList.add('hidden'), 300);
+  },
+
+  executeLogout() {
+    this.closeLogoutModal();
+    setTimeout(() => {
+      localStorage.removeItem('sipanda_session');
+      this.user = null;
+      this.currentPage = 'login';
+      this.render();
+      this.showToast("Berhasil Keluar");
+    }, 300);
   },
 
   togglePass() { 
