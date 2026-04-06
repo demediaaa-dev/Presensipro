@@ -243,7 +243,31 @@ const App = {
               </div>
            </div>
         </div>
-      </div>`;
+      </div>
+      
+      <div id="confirm-out-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] hidden flex items-end justify-center transition-all duration-300">
+      <div id="confirm-out-sheet" class="bg-white w-full max-w-md rounded-t-[40px] p-8 pb-10 translate-y-full transition-transform duration-300 shadow-[0_-20px_50px_rgba(0,0,0,0.1)]">
+        
+        <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-8"></div>
+        
+        <div class="text-center mb-8">
+          <div class="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-[2.5rem] flex items-center justify-center mx-auto mb-4 shadow-sm">
+            <i data-lucide="log-out" class="w-10 h-10"></i>
+          </div>
+          <h3 class="text-2xl font-black text-gray-900 uppercase tracking-tighter">Selesai Bertugas?</h3>
+          <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Pastikan pekerjaan Anda telah selesai</p>
+        </div>
+    
+        <div class="flex flex-col gap-3">
+          <button onclick="App.processOutConfirmation()" class="w-full p-5 bg-indigo-600 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-indigo-100 active:scale-95 transition-all">
+            Ya, Presensi Pulang
+          </button>
+          <button onclick="App.closeConfirmOut()" class="w-full p-5 bg-gray-50 text-gray-400 rounded-3xl font-black text-xs uppercase tracking-[0.2em] active:scale-95 transition-all">
+            Batal
+          </button>
+        </div>
+      </div>
+    </div>`;
   },
 
   createMenuBtn(label, icon, action = "") {
