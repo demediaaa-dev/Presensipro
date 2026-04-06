@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sipanda - Presensi Digital</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="bg-[#F3F4F6] min-h-screen text-gray-900 font-sans overflow-x-hidden">
+
+  <div id="app">
+    <div class="flex items-center justify-center min-h-screen">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+    </div>
+  </div>
+
+  <div id="modal-overlay" onclick="App.closePresence()" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] opacity-0 invisible transition-all duration-300"></div>
+  
+  <div id="presence-sheet" class="bottom-sheet fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white z-[101] translate-y-full transition-transform duration-500 rounded-t-[40px]">
+    <div class="sheet-handle w-10 h-1 bg-gray-200 rounded-full mx-auto my-3"></div>
+    <div class="p-8 pt-2 text-center">
+      <h3 class="text-xl font-black text-gray-900 mb-1 uppercase tracking-tighter">Verifikasi Wajah</h3>
+      <p class="text-[11px] text-gray-400 font-bold uppercase tracking-widest mb-4">Pastikan wajah berada di dalam lingkaran</p>
+      
+      <div class="camera-view relative w-60 h-60 rounded-full border-4 border-red-600 overflow-hidden mx-auto shadow-2xl bg-black">
+        <video id="video" autoplay muted playsinline class="w-full h-full object-cover"></video>
+        <div class="absolute top-0 left-0 w-full h-1 bg-red-500 shadow-[0_0_15px_red] animate-scan"></div>
+      </div>
+
+      <div class="mt-6 space-y-3">
+        <button onclick="FaceService.processNow()" class="w-full bg-gradient-to-r from-red-600 to-rose-700 text-white font-bold p-4 rounded-2xl flex items-center justify-center gap-3 active:scale-95 transition-all">
+          <i data-lucide="scan-face" class="w-5 h-5"></i> AMBIL PRESENSI
+        </button>
+        <button onclick="App.closePresence()" class="w-full p-4 text-gray-400 text-[11px] font-black uppercase tracking-widest">Batal</button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    @keyframes scan {
+      0%, 100% { top: 0% }
+      50% { top: 100% }
+    }
+    .animate-scan { animation: scan 3s infinite linear; }
+    
+    /* Tambahan agar transisi modal lancar jika CSS eksternal belum termuat */
+    #modal-overlay.active { opacity: 1; visibility: visible; }
+    #presence-sheet.active { transform: translateY(0); }
+  </style>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/face-logic.js"></script> 
+  <script src="assets/js/app.js"></script>
+
+</body>
+</html>
