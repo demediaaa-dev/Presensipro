@@ -1,18 +1,53 @@
 const App = {
   user: null,
-  currentPage: 'login',
-  showPass: false,
-  dataStats: { employees: 0, present: 0, leaves: 0 }, // Data untuk Admin
+  currentPage: 'dashboard',
+  isWithinRange: false, // Default false sampai GPS terdeteksi
+  officeCoords: { lat: -6.2000, lng: 106.8166, radius: 100 }, // Contoh koordinat, nanti bisa ambil dari API
 
   init() {
     const saved = localStorage.getItem('sipanda_session');
     if (saved) {
       this.user = JSON.parse(saved);
       this.currentPage = 'dashboard';
+      this.monitorLocation(); // Mulai pantau lokasi user
     }
     this.render();
   },
 
+  // Fungsi memantau lokasi secara real-time
+  monitorLocation() {
+    if (navigator.geolocation) {
+      navigator.geolocation.watchPosition((pos) => {
+        // Hitung jarak (Haversine Formula sederhana)
+        const dist = this.getDistance(
+          pos.coords.latitude, pos.coords.longitude,
+          this.officeCoords.lat, this.officeCoords.lng
+        );
+        
+        const inRange = dist <= this.officeCoords.radius;
+        
+        // Hanya render ulang jika status berubah agar tidak lag
+        if (this.isWithinRange !== inRange) {
+          this.isWithinRange = inRange;
+          this.render();
+        }
+      }, (err) => console.error("GPS Error:", err), { enableHighAccuracy: true });
+    }
+  },
+
+  getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // Radius bumi dalam meter
+    const φ1 = lat1 * Math.PI/180;
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  },
+  
 // Di dalam app.js
 
   render() {
