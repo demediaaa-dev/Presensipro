@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sipanda - Presensi Digital</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="bg-[#F3F4F6] min-h-screen text-gray-900 font-sans overflow-x-hidden">
+
+  <div id="app"></div>
+
+  <div id="modal-overlay" onclick="App.closePresence()" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] opacity-0 invisible transition-all duration-300"></div>
+  <div id="presence-sheet" class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white z-[101] translate-y-full transition-transform duration-500 rounded-t-[40px] p-8 text-center shadow-2xl">
+    <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-6"></div>
+    <h3 class="text-xl font-black mb-1 uppercase tracking-tighter">Verifikasi Wajah</h3>
+    <div class="relative w-60 h-60 rounded-full border-4 border-red-600 overflow-hidden mx-auto my-6 bg-black">
+      <video id="video" autoplay muted playsinline class="w-full h-full object-cover"></video>
+    </div>
+    <button onclick="App.processAttendanceNow()" class="w-full bg-red-600 text-white font-bold p-4 rounded-2xl shadow-lg active:scale-95 transition-all">AMBIL PRESENSI</button>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
