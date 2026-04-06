@@ -1,5 +1,6 @@
 const FaceService = {
   stream: null,
+  isProcessing: false, // Tambahkan guard agar tidak double submit
 
   async initCamera() {
     const video = document.getElementById('video');
@@ -23,54 +24,66 @@ const FaceService = {
       this.stream = null;
     }
     const video = document.getElementById('video');
-    if (video) video.srcObject = null;
+    if (video) {
+      video.srcObject = null;
+      video.pause();
+    }
   },
 
   async processNow() {
-    const video = document.getElementById('video');
+    if (this.isProcessing) return; // Cegah klik berulang
     
-    // --- EFEK FREEZE YANG BENAR ---
-    // Jangan di-stop track-nya, cukup di-pause videonya saja.
-    // Gambar terakhir akan tertahan di layar (tidak jadi hitam).
-    if (video) {
-      video.pause(); 
-    }
+    const video = document.getElementById('video');
+    const btn = document.querySelector('.btn-capture'); // Sesuaikan class tombol capture kamu
+    
+    this.isProcessing = true;
+    if (video) video.pause(); 
+    if (btn) btn.disabled = true;
 
-    App.showToast("Mengunci Lokasi...", "success");
+    App.showToast("Mengunci Lokasi & Mengirim...", "success");
 
     try {
-      // 1. Ambil GPS
+      // 1. Ambil GPS dengan timeout lebih longgar
       const pos = await new Promise((res, rej) => {
         navigator.geolocation.getCurrentPosition(res, rej, { 
           enableHighAccuracy: true,
-          timeout: 5000 
+          timeout: 10000 
         });
       });
 
-      // 2. Kirim ke Backend
+      // 2. Kirim ke Backend - PASTI KAN property ID sama dengan di app.js
+      // Gunakan fallback untuk menghindari undefined
+      const finalUserId = App.user.User_ID || App.user.id;
+
       const res = await API.call({
         action: 'submit_attendance',
-        user_id: App.user.User_ID,
+        user_id: finalUserId,
         lat: pos.coords.latitude,
         lng: pos.coords.longitude
       });
 
       if (res.success) {
-        App.showToast("Presensi Berhasil!", "success");
-        // Beri jeda agar user bisa lihat hasil fotonya sebentar
+        App.showToast(res.message || "Presensi Berhasil!", "success");
+        
+        // Update status di aplikasi (agar tombol berubah jadi 'Pulang')
+        await App.getAttendanceStatus(); 
+
         setTimeout(() => {
-          this.stopCamera(); // Baru matikan kamera setelah modal mau tutup
+          this.stopCamera();
           App.closePresence();
-          App.render();
+          this.isProcessing = false;
         }, 1500);
       } else {
         App.showToast(res.message, "error");
-        // Jika gagal, jalankan video lagi agar user bisa coba lagi
+        this.isProcessing = false;
         if (video) video.play();
+        if (btn) btn.disabled = false;
       }
     } catch (e) {
-      App.showToast("GPS Gagal! Cek izin lokasi.", "error");
+      this.isProcessing = false;
+      App.showToast("GPS Gagal atau Server Error", "error");
       if (video) video.play();
+      if (btn) btn.disabled = false;
     }
   }
 };
