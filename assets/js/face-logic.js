@@ -1,27 +1,3 @@
-// Memuat script face-api.js dari CDN atau lokal
-const FaceLogic = {
-  isLoaded: false,
-
-  async loadModels() {
-    const MODEL_URL = '/models'; 
-    await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-    ]);
-    this.isLoaded = true;
-    console.log("Models Loaded");
-  },
-
-  async getFaceDescriptor(videoElement) {
-    const detection = await faceapi.detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions())
-      .withFaceLandmarks()
-      .withFaceDescriptor();
-    
-    return detection ? detection.descriptor : null;
-  }
-};
-
 const FaceService = {
   stream: null,
 
@@ -30,47 +6,74 @@ const FaceService = {
     if (!video) return console.error("Elemen video tidak ditemukan!");
     
     try {
+      // Hentikan stream lama jika masih ada (pembersihan)
+      this.stopCamera();
+
       this.stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "user" } 
+        video: { 
+          facingMode: "user",
+          width: { ideal: 640 },
+          height: { ideal: 640 }
+        },
+        audio: false 
       });
+
       video.srcObject = this.stream;
+
+      // PENTING: Tunggu video siap lalu jalankan play()
+      video.onloadedmetadata = () => {
+        video.play().catch(e => console.error("Gagal auto-play:", e));
+      };
+
     } catch (err) {
-      App.showToast("Kamera diblokir!", "error");
+      console.error("Kamera Error:", err);
+      App.showToast("Kamera diblokir atau tidak ditemukan!", "error");
     }
   },
 
   stopCamera() {
     if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
+      this.stream.getTracks().forEach(track => {
+        track.stop();
+      });
+      this.stream = null;
     }
+    const video = document.getElementById('video');
+    if (video) video.srcObject = null;
   },
 
   async processNow() {
-    App.showToast("Memindai Wajah...", "success");
+    // Tombol loading state
+    App.showToast("Memproses Presensi...", "success");
     
-    // Logika Sinkronisasi Database (Step 1 yang tadi)
     try {
-      // 1. Ambil GPS
-      const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej));
+      // 1. Cek GPS dengan Timeout (agar tidak gantung jika GPS mati)
+      const pos = await new Promise((res, rej) => {
+        navigator.geolocation.getCurrentPosition(res, rej, {
+          enableHighAccuracy: true,
+          timeout: 5000
+        });
+      });
       
-      // 2. Kirim ke Backend GAS
-      const res = await API.post({
-        action: 'submitAttendance',
+      // 2. Kirim ke Backend (Pastikan action sesuai dengan Code.gs: 'submit_attendance')
+      const res = await API.call({
+        action: 'submit_attendance',
         user_id: App.user.User_ID,
         lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-        // Face_Descriptor: hasil_scan_wajah
+        lng: pos.coords.longitude
       });
 
       if (res.success) {
-        App.showToast("Berhasil! Selamat Bekerja", "success");
+        App.showToast("Presensi Berhasil!", "success");
         App.closePresence();
+        // Update dashboard jika perlu
         App.render();
       } else {
         App.showToast(res.message, "error");
       }
     } catch (e) {
-      App.showToast("Gagal verifikasi lokasi", "error");
+      console.error("Attendance Error:", e);
+      App.showToast("Gagal verifikasi lokasi/GPS", "error");
     }
   }
 };
