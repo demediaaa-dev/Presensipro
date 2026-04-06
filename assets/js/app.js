@@ -1,72 +1,80 @@
 const App = {
   user: null,
-  currentPage: 'dashboard',
-  isWithinRange: false, // Default false sampai GPS terdeteksi
-  officeCoords: { lat: -6.2000, lng: 106.8166, radius: 100 }, // Contoh koordinat, nanti bisa ambil dari API
+  currentPage: 'dashboard', // Default ke dashboard jika session ada
+  showPass: false,
+  isWithinRadius: false, // State untuk mengecek lokasi
+  officeLocation: { lat: 0, lng: 0, radius: 100 }, // Akan diisi dari database
 
   init() {
     const saved = localStorage.getItem('sipanda_session');
     if (saved) {
       this.user = JSON.parse(saved);
       this.currentPage = 'dashboard';
-      this.monitorLocation(); // Mulai pantau lokasi user
+      this.checkLocation(); // Cek lokasi otomatis saat buka app
+    } else {
+      this.currentPage = 'login';
     }
     this.render();
   },
 
-  // Fungsi memantau lokasi secara real-time
-  monitorLocation() {
-    if (navigator.geolocation) {
-      navigator.geolocation.watchPosition((pos) => {
-        // Hitung jarak (Haversine Formula sederhana)
-        const dist = this.getDistance(
-          pos.coords.latitude, pos.coords.longitude,
-          this.officeCoords.lat, this.officeCoords.lng
-        );
-        
-        const inRange = dist <= this.officeCoords.radius;
-        
-        // Hanya render ulang jika status berubah agar tidak lag
-        if (this.isWithinRange !== inRange) {
-          this.isWithinRange = inRange;
-          this.render();
-        }
-      }, (err) => console.error("GPS Error:", err), { enableHighAccuracy: true });
-    }
-  },
-
-  getDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371e3; // Radius bumi dalam meter
-    const φ1 = lat1 * Math.PI/180;
-    const φ2 = lat2 * Math.PI/180;
-    const Δφ = (lat2-lat1) * Math.PI/180;
-    const Δλ = (lon2-lon1) * Math.PI/180;
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ/2) * Math.sin(Δλ/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  },
-  
-// Di dalam app.js
-
   render() {
     const root = document.getElementById('app');
-    // Pilih view berdasarkan halaman
     if (this.currentPage === 'login') {
       root.innerHTML = this.viewLogin();
+    } else if (this.currentPage === 'dinas_luar') {
+      root.innerHTML = this.viewDinasLuar();
     } else {
       root.innerHTML = (this.user.Role.toLowerCase() === 'admin') ? this.viewAdmin() : this.viewUser();
     }
     
-    // PENTING: Render icon setelah HTML terpasang
     lucide.createIcons();
     this.startClock();
   },
 
+  // --- LOGIKA CEK LOKASI ---
+  async checkLocation() {
+    if (this.user.Role.toLowerCase() === 'admin') return;
 
+    navigator.geolocation.watchPosition(async (pos) => {
+      try {
+        const res = await API.call({
+          action: 'check_location', // Buat fungsi ini di Code.gs untuk ambil koordinat shift user
+          user_id: this.user.User_ID
+        });
 
-  // --- VIEW: LOGIN (Dengan Fitur Enter & Toggle Password) ---
+        if (res.success) {
+          const dist = this.getDistance(pos.coords.latitude, pos.coords.longitude, res.lat, res.lng);
+          this.isWithinRadius = dist <= res.radius;
+          
+          // Update tombol di UI secara dinamis tanpa full render jika memungkinkan
+          const btnPresence = document.getElementById('btn-presence');
+          if (btnPresence) {
+            if (this.isWithinRadius) {
+              btnPresence.classList.remove('opacity-50', 'grayscale');
+              btnPresence.disabled = false;
+            } else {
+              btnPresence.classList.add('opacity-50', 'grayscale');
+              btnPresence.disabled = true;
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Gagal sinkron lokasi");
+      }
+    }, null, { enableHighAccuracy: true });
+  },
+
+  getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3;
+    const φ1 = lat1 * Math.PI/180;
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  },
+
+  // --- VIEW: LOGIN ---
   viewLogin() {
     return `
       <div class="flex items-center justify-center min-h-screen p-6 bg-white">
@@ -82,7 +90,7 @@ const App = {
           <div class="space-y-4 text-left" onkeydown="if(event.key==='Enter') App.handleLogin()">
             <div class="relative">
               <i data-lucide="user" class="absolute left-4 top-4 w-5 h-5 text-gray-400"></i>
-              <input id="username" type="text" placeholder="ID Pegawai / Username" class="w-full pl-12 p-4 bg-gray-50 rounded-2xl outline-none border border-transparent focus:border-red-500 transition-all">
+              <input id="username" type="text" placeholder="ID Pegawai" class="w-full pl-12 p-4 bg-gray-50 rounded-2xl outline-none border border-transparent focus:border-red-500 transition-all">
             </div>
             <div class="relative">
               <i data-lucide="lock" class="absolute left-4 top-4 w-5 h-5 text-gray-400"></i>
@@ -91,78 +99,16 @@ const App = {
                 <i data-lucide="${this.showPass ? 'eye-off' : 'eye'}" class="w-5 h-5"></i>
               </button>
             </div>
-            <button onclick="App.handleLogin()" id="btnLogin" class="w-full btn-primary text-white font-bold p-4 rounded-2xl shadow-xl mt-6 uppercase text-xs tracking-widest active:scale-95 transition-all">Masuk ke Sistem</button>
+            <button onclick="App.handleLogin()" id="btnLogin" class="w-full bg-red-600 text-white font-bold p-4 rounded-2xl shadow-xl mt-6 uppercase text-xs tracking-widest active:scale-95 transition-all">Masuk ke Sistem</button>
           </div>
-          <p class="mt-16 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v2.0 Sinkronisasi Database</p>
         </div>
       </div>`;
   },
 
-  // --- VIEW: ADMIN (WEB/DESKTOP VIEW) ---
-  viewAdmin() {
-    return `
-      <div class="flex min-h-screen bg-gray-100">
-        <aside class="w-72 bg-white border-r border-gray-200 hidden lg:flex flex-col">
-          <div class="p-8 border-b border-gray-50">
-            <h1 class="text-2xl font-black tracking-tighter text-gray-900">KEHADIRAN<span class="text-red-600">.</span></h1>
-          </div>
-          <nav class="flex-1 p-6 space-y-3">
-            <a href="#" class="flex items-center gap-4 p-4 rounded-2xl sidebar-link-active"><i data-lucide="layout-grid" class="w-5 h-5"></i> Dashboard</a>
-            <a href="#" class="flex items-center gap-4 p-4 rounded-2xl text-gray-400 hover:bg-gray-50 transition"><i data-lucide="users" class="w-5 h-5"></i> Manajemen User</a>
-            <a href="#" class="flex items-center gap-4 p-4 rounded-2xl text-gray-400 hover:bg-gray-50 transition"><i data-lucide="map-pin" class="w-5 h-5"></i> Lokasi & Shift</a>
-            <a href="#" class="flex items-center gap-4 p-4 rounded-2xl text-gray-400 hover:bg-gray-50 transition"><i data-lucide="file-bar-chart" class="w-5 h-5"></i> Laporan Rekap</a>
-          </nav>
-          <div class="p-6 border-t border-gray-50">
-            <button onclick="App.logout()" class="flex items-center gap-4 p-4 text-red-500 w-full hover:bg-red-50 rounded-2xl transition font-bold">
-              <i data-lucide="log-out" class="w-5 h-5"></i> Keluar Sistem
-            </button>
-          </div>
-        </aside>
-
-        <main class="flex-1 p-10 overflow-y-auto">
-          <header class="flex justify-between items-center mb-10">
-            <div>
-              <h2 class="text-3xl font-extrabold text-gray-900">Dashboard Utama</h2>
-              <p class="text-gray-400 text-sm">Selamat datang kembali, Admin Panel.</p>
-            </div>
-            <div class="flex items-center gap-4 bg-white p-2 pr-6 rounded-full shadow-sm border border-gray-100">
-              <div class="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-bold">A</div>
-              <div class="text-sm">
-                <p class="font-bold leading-none">${this.user.Name}</p>
-                <p class="text-[10px] text-red-500 font-bold uppercase tracking-tighter">${this.user.Role}</p>
-              </div>
-            </div>
-          </header>
-
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
-            ${this.adminStatCard('Total Karyawan', '124', 'users', 'red')}
-            ${this.adminStatCard('Hadir Hari Ini', '98', 'check-circle', 'green')}
-            ${this.adminStatCard('Permohonan Izin', '12', 'file-text', 'orange')}
-          </div>
-
-          <div class="bg-white rounded-[32px] p-8 border border-gray-100 shadow-sm">
-            <div class="flex justify-between items-center mb-8">
-              <h3 class="font-bold text-xl text-gray-800">Log Presensi Terbaru</h3>
-              <button class="text-red-600 font-bold text-sm flex items-center gap-2">Lihat Semua <i data-lucide="chevron-right" class="w-4 h-4"></i></button>
-            </div>
-            <table class="w-full text-left">
-              <thead class="bg-gray-50 text-[10px] uppercase text-gray-400 font-black tracking-widest border-b border-gray-100">
-                <tr><th class="p-4">Karyawan</th><th class="p-4">Jam Masuk</th><th class="p-4">Jam Pulang</th><th class="p-4">Status</th></tr>
-              </thead>
-              <tbody class="text-sm">
-                <tr class="border-b border-gray-50"><td class="p-4 font-bold text-gray-800">Budi Santoso</td><td class="p-4">07:55:12</td><td class="p-4">17:05:30</td><td class="p-4 text-green-600 font-black text-xs uppercase">Hadir Tepat</td></tr>
-                <tr class="border-b border-gray-50"><td class="p-4 font-bold text-gray-800">Andini Putri</td><td class="p-4">08:15:44</td><td class="p-4">-- : --</td><td class="p-4 text-orange-500 font-black text-xs uppercase">Terlambat</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </main>
-      </div>`;
-  },
-
-  // --- VIEW: USER (MOBILE VIEW DASHBOARD) ---
+  // --- VIEW: USER DASHBOARD ---
   viewUser() {
     return `
-      <div class="header-red-section"></div>
+      <div class="bg-red-600 h-64 absolute top-0 left-0 right-0 -z-10 rounded-b-[50px]"></div>
       <div class="max-w-md mx-auto min-h-screen flex flex-col p-5 pb-32">
         
         <header class="flex justify-between items-center mb-8 mt-2 text-white px-1">
@@ -179,49 +125,128 @@ const App = {
         </header>
 
         <div class="text-center mb-8">
-          <h2 class="text-5xl font-black text-white tracking-tighter">KEHADIRAN</h2>
+          <h2 class="text-5xl font-black text-white tracking-tighter">SIPANDA</h2>
           <p id="clock" class="text-xs font-mono text-red-100 tracking-[0.3em] mt-2 font-bold opacity-80">00:00:00 WIB</p>
         </div>
 
-        <div class="glass-card p-6 mb-6">
+        <div class="bg-white rounded-[35px] p-6 mb-6 shadow-xl border border-gray-100">
           <div class="flex justify-between items-start mb-6 border-b border-gray-50 pb-4">
              <div class="flex items-center gap-3 text-gray-800">
-                <div class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600"><i data-lucide="clock" class="w-5 h-5"></i></div>
-                <div><p class="text-[10px] font-bold text-gray-400 uppercase leading-none mb-1">Shift Kerja</p><p class="text-sm font-black uppercase">Pagi (Reguler)</p></div>
-             </div>
-             <div class="text-right">
-                <p class="text-sm font-black text-gray-800">Senin, 06 April</p>
-                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-tighter tracking-[0.2em]">SINKRONISASI AKTIF</p>
+                <div class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600"><i data-lucide="map-pin" class="w-5 h-5"></i></div>
+                <div>
+                  <p class="text-[10px] font-bold text-gray-400 uppercase leading-none mb-1">Status Lokasi</p>
+                  <p class="text-sm font-black ${this.isWithinRadius ? 'text-green-600' : 'text-red-500'}">
+                    ${this.isWithinRadius ? 'Dalam Area Presensi' : 'Di Luar Area'}
+                  </p>
+                </div>
              </div>
           </div>
+          
           <div class="grid grid-cols-2 gap-4">
-             <div class="text-center p-3 bg-gray-50 rounded-2xl border border-gray-100"><p class="text-[9px] font-bold text-gray-400 uppercase mb-1">Target Masuk</p><p class="text-sm font-black text-gray-700">08:00 WIB</p></div>
-             <div class="text-center p-3 bg-gray-50 rounded-2xl border border-gray-100"><p class="text-[9px] font-bold text-gray-400 uppercase mb-1">Target Pulang</p><p class="text-sm font-black text-gray-700">17:00 WIB</p></div>
+             <div class="text-center p-3 bg-gray-50 rounded-2xl border border-gray-100"><p class="text-[9px] font-bold text-gray-400 uppercase mb-1">Shift</p><p class="text-sm font-black text-gray-700">Pagi</p></div>
+             <div class="text-center p-3 bg-gray-50 rounded-2xl border border-gray-100"><p class="text-[9px] font-bold text-gray-400 uppercase mb-1">Status</p><p class="text-sm font-black text-gray-700">Aktif</p></div>
           </div>
         </div>
 
         <div>
-           <p class="text-[11px] font-black text-gray-400 mb-4 ml-1 uppercase tracking-widest opacity-60">Layanan Digital</p>
+           <p class="text-[11px] font-black text-gray-400 mb-4 ml-1 uppercase tracking-widest opacity-60">Layanan Utama</p>
            <div class="grid grid-cols-4 gap-4 px-1">
+              <div onclick="App.currentPage='dinas_luar'; App.render()" class="flex flex-col items-center gap-2 cursor-pointer">
+                 <button class="w-full aspect-square bg-orange-50 border border-orange-100 rounded-2xl flex items-center justify-center text-orange-500 shadow-sm active:scale-90 transition-all"><i data-lucide="briefcase"></i></button>
+                 <span class="text-[9px] font-bold text-gray-500 uppercase tracking-tight text-center leading-tight">Dinas Luar</span>
+              </div>
               ${this.createMenuBtn('Izin', 'file-text')}
               ${this.createMenuBtn('Jurnal', 'edit-3')}
-              ${this.createMenuBtn('Gaji', 'credit-card')}
               ${this.createMenuBtn('Histori', 'history')}
            </div>
         </div>
 
-        <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto h-20 bg-white flex items-center justify-around rounded-t-[35px] px-8 z-50 border-t border-gray-50">
-           <button class="flex flex-col items-center text-red-600 transition active:scale-90"><i data-lucide="layout-grid" class="w-6 h-6"></i><span class="text-[9px] font-bold mt-1 uppercase tracking-tighter tracking-widest">Beranda</span></button>
-           <div class="relative -top-8">
-              <button onclick="App.startPresence()" class="w-16 h-16 rounded-full btn-primary flex items-center justify-center border-4 border-white shadow-xl transition active:scale-90"><i data-lucide="camera" class="w-8 h-8 text-white"></i></button>
-              <span class="absolute -bottom-6 left-0 right-0 text-center text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Presensi</span>
+        <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto h-24 bg-white/80 backdrop-blur-lg flex items-center justify-around rounded-t-[40px] px-8 z-50 border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+           <button onclick="App.currentPage='dashboard'; App.render()" class="flex flex-col items-center ${this.currentPage==='dashboard'?'text-red-600':'text-gray-300'}"><i data-lucide="layout-grid" class="w-6 h-6"></i><span class="text-[9px] font-bold mt-1 uppercase">Beranda</span></button>
+           
+           <div class="relative -top-10">
+              <button id="btn-presence" onclick="App.startPresence()" ${!this.isWithinRadius ? 'disabled' : ''} 
+                class="w-20 h-20 rounded-full bg-red-600 flex items-center justify-center border-[6px] border-white shadow-2xl transition active:scale-90 disabled:opacity-50 disabled:grayscale">
+                <i data-lucide="camera" class="w-10 h-10 text-white"></i>
+              </button>
            </div>
-           <button onclick="App.logout()" class="flex flex-col items-center text-gray-300 transition active:scale-90"><i data-lucide="log-out" class="w-6 h-6"></i><span class="text-[9px] font-bold mt-1 uppercase tracking-tighter tracking-widest text-gray-300">Keluar</span></button>
+
+           <button onclick="App.logout()" class="flex flex-col items-center text-gray-300"><i data-lucide="log-out" class="w-6 h-6"></i><span class="text-[9px] font-bold mt-1 uppercase">Keluar</span></button>
         </nav>
       </div>`;
   },
 
-  // --- HELPERS & ACTIONS ---
+  // --- VIEW: FORM DINAS LUAR ---
+  viewDinasLuar() {
+    return `
+      <div class="max-w-md mx-auto p-6 pt-12 min-h-screen bg-gray-50">
+        <button onclick="App.currentPage='dashboard'; App.render()" class="mb-8 flex items-center gap-2 text-gray-500 font-bold"><i data-lucide="arrow-left" class="w-5 h-5"></i> KEMBALI</button>
+        <h2 class="text-3xl font-black text-gray-900 tracking-tighter mb-2 uppercase">Dinas Luar</h2>
+        <p class="text-sm text-gray-400 mb-8 font-bold uppercase tracking-widest">Pelaporan Kegiatan Luar Area</p>
+        
+        <div class="space-y-6">
+          <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Foto Kegiatan</label>
+            <div onclick="document.getElementById('file-dinas').click()" class="w-full aspect-video bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 cursor-pointer overflow-hidden">
+               <input type="file" id="file-dinas" class="hidden" accept="image/*" capture="camera">
+               <div id="preview-dinas" class="text-center p-4">
+                  <i data-lucide="image" class="w-10 h-10 mx-auto mb-2 opacity-30"></i>
+                  <p class="text-xs font-bold uppercase">Klik untuk Ambil Foto</p>
+               </div>
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Keterangan Kegiatan</label>
+            <textarea id="desc-dinas" class="w-full bg-gray-50 border-none rounded-2xl p-4 outline-none focus:ring-2 focus:ring-red-100" rows="4" placeholder="Tulis rincian tugas luar Anda..."></textarea>
+          </div>
+
+          <button onclick="App.submitDinasLuar()" class="w-full bg-orange-500 text-white font-black p-5 rounded-[2rem] shadow-xl shadow-orange-200 active:scale-95 transition-all uppercase tracking-widest">Kirim Laporan</button>
+        </div>
+      </div>`;
+  },
+
+  async submitDinasLuar() {
+    this.showToast("Mengirim Laporan...", "success");
+    setTimeout(() => {
+      this.showToast("Laporan Dinas Luar Terkirim!");
+      this.currentPage = 'dashboard';
+      this.render();
+    }, 2000);
+  },
+
+  // --- VIEW: ADMIN (Fungsi Sama) ---
+  viewAdmin() {
+    return `
+      <div class="flex min-h-screen bg-gray-100">
+        <aside class="w-72 bg-white border-r border-gray-200 hidden lg:flex flex-col">
+          <div class="p-8 border-b border-gray-50">
+            <h1 class="text-2xl font-black tracking-tighter text-gray-900">SIPANDA<span class="text-red-600">.</span></h1>
+          </div>
+          <nav class="flex-1 p-6 space-y-3">
+            <a href="#" class="flex items-center gap-4 p-4 rounded-2xl bg-red-50 text-red-600"><i data-lucide="layout-grid" class="w-5 h-5"></i> Dashboard</a>
+            <a href="#" class="flex items-center gap-4 p-4 rounded-2xl text-gray-400"><i data-lucide="users" class="w-5 h-5"></i> Pegawai</a>
+            <a href="#" class="flex items-center gap-4 p-4 rounded-2xl text-gray-400"><i data-lucide="file-text" class="w-5 h-5"></i> Laporan</a>
+          </nav>
+          <div class="p-6 border-t border-gray-50">
+            <button onclick="App.logout()" class="flex items-center gap-4 p-4 text-red-500 w-full font-bold">
+              <i data-lucide="log-out" class="w-5 h-5"></i> Keluar
+            </button>
+          </div>
+        </aside>
+
+        <main class="flex-1 p-10">
+          <h2 class="text-3xl font-black text-gray-900 mb-8">Admin Dashboard</h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+            ${this.adminStatCard('Total Karyawan', '124', 'users', 'red')}
+            ${this.adminStatCard('Hadir Hari Ini', '98', 'check-circle', 'green')}
+            ${this.adminStatCard('Dinas Luar', '5', 'briefcase', 'orange')}
+          </div>
+        </main>
+      </div>`;
+  },
+
+  // --- HELPERS ---
   createMenuBtn(label, icon) {
     return `
       <div class="flex flex-col items-center gap-2">
@@ -243,80 +268,39 @@ const App = {
   async handleLogin() {
     const u = document.getElementById('username').value;
     const p = document.getElementById('password').value;
-    
-    if (!u || !p) return this.showToast("Masukkan ID dan Password!", "error");
-
-    // Efek loading pada tombol
-    const btn = document.getElementById('btnLogin');
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mx-auto"></div>`;
+    if (!u || !p) return this.showToast("Isi ID & Password", "error");
 
     try {
-      const res = await API.call({
-        action: "login",
-        username: u,
-        password: p,
-        currentDeviceId: navigator.userAgent // Sederhana, bisa diganti UUID jika pakai mobile wrapper
-      });
-
+      const res = await API.call({ action: "login", username: u, password: p, currentDeviceId: navigator.userAgent });
       if (res.success) {
-        this.showToast(`Selamat datang, ${res.data.name}`, "success");
-        
-        // Simpan data ke session
-        this.user = { 
-          User_ID: res.data.id, 
-          Name: res.data.name, 
-          Role: res.data.role 
-        };
-        
+        this.user = { User_ID: res.data.id, Name: res.data.name, Role: res.data.role };
         localStorage.setItem('sipanda_session', JSON.stringify(this.user));
-        
-        // PINDAH HALAMAN HANYA JIKA SUCCESS
         this.currentPage = 'dashboard';
+        this.checkLocation();
         this.render();
       } else {
-        // Tampilkan pesan error dari database (misal: "Password salah")
         this.showToast(res.message, "error");
-        btn.disabled = false;
-        btn.innerHTML = originalText;
       }
-    } catch (e) {
-      this.showToast("Gagal terhubung ke database", "error");
-      btn.disabled = false;
-      btn.innerHTML = originalText;
-    }
+    } catch (e) { this.showToast("Database Error", "error"); }
   },
 
   togglePass() {
     this.showPass = !this.showPass;
-    const passInput = document.getElementById('password');
-    const passBtnIcon = document.querySelector('[onclick="App.togglePass()"] i');
-    
-    if (passInput) {
-      passInput.type = this.showPass ? 'text' : 'password';
-      // Update icon tanpa render seluruh halaman
-      passBtnIcon.setAttribute('data-lucide', this.showPass ? 'eye-off' : 'eye');
-      lucide.createIcons();
-    }
+    const p = document.getElementById('password');
+    if(p) p.type = this.showPass ? 'text' : 'password';
+    lucide.createIcons();
   },
 
   logout() { localStorage.removeItem('sipanda_session'); this.user = null; this.currentPage = 'login'; this.render(); },
 
   showToast(msg, type = "success") {
-    let container = document.getElementById('toast-box');
-    if (!container) {
-      container = document.createElement('div');
-      container.id = 'toast-box';
-      container.className = 'fixed top-5 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-xs px-4';
-      document.body.appendChild(container);
-    }
+    let box = document.getElementById('toast-box') || document.createElement('div');
+    box.id = 'toast-box'; box.className = 'fixed top-5 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-xs px-4';
+    document.body.appendChild(box);
     const t = document.createElement('div');
-    const bgColor = type === "error" ? "bg-red-600" : "bg-gray-900";
-    t.className = `${bgColor} text-white px-6 py-4 rounded-2xl shadow-2xl mb-3 text-sm font-bold text-center animate-bounce-short transition-all duration-500`;
-    t.innerText = msg;
-    container.appendChild(t);
-    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, 3000);
+    t.className = `${type==="error"?"bg-red-600":"bg-gray-900"} text-white px-6 py-4 rounded-2xl shadow-2xl mb-3 text-sm font-bold text-center`;
+    t.innerText = msg; box.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
   },
 
   startClock() {
@@ -325,49 +309,22 @@ const App = {
   },
 
   startPresence() {
+    if (!this.isWithinRadius) return this.showToast("Anda di luar area!", "error");
     const overlay = document.getElementById('modal-overlay');
     const sheet = document.getElementById('presence-sheet');
-    
-    if (overlay && sheet) {
-      // 1. Tambahkan class active (pastikan CSS transition ada)
-      overlay.classList.add('active');
-      sheet.classList.add('active');
-      overlay.style.visibility = 'visible';
-      overlay.style.opacity = '1';
-      sheet.style.transform = 'translateY(0)';
-
-      // 2. Jalankan Kamera dari FaceService
-      if (typeof FaceService !== 'undefined') {
-        FaceService.initCamera();
-      }
-      
-      // 3. Render ulang icon khusus di dalam modal yang baru muncul
-      lucide.createIcons();
-    } else {
-      console.error("Elemen modal tidak ditemukan di DOM!");
-    }
+    overlay.style.visibility = 'visible'; overlay.style.opacity = '1';
+    sheet.style.transform = 'translateY(0)';
+    if (typeof FaceService !== 'undefined') FaceService.initCamera();
+    lucide.createIcons();
   },
 
   closePresence() {
     const overlay = document.getElementById('modal-overlay');
     const sheet = document.getElementById('presence-sheet');
-    
-    if (overlay && sheet) {
-      overlay.style.opacity = '0';
-      overlay.style.visibility = 'hidden';
-      sheet.style.transform = 'translateY(100%)';
-      
-      setTimeout(() => {
-        overlay.classList.remove('active');
-        sheet.classList.remove('active');
-      }, 300);
-
-      if (typeof FaceService !== 'undefined') {
-        FaceService.stopCamera();
-      }
-    }
+    overlay.style.opacity = '0'; overlay.style.visibility = 'hidden';
+    sheet.style.transform = 'translateY(100%)';
+    if (typeof FaceService !== 'undefined') FaceService.stopCamera();
   }
 };
-
 
 App.init();
