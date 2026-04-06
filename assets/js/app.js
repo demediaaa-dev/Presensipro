@@ -267,6 +267,23 @@ const App = {
           </button>
         </div>
       </div>
+    </div>
+
+    <div id="logout-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[400] hidden flex items-end justify-center transition-all duration-300">
+      <div id="logout-sheet" class="bg-white w-full max-w-md rounded-t-[40px] p-8 pb-10 translate-y-full transition-transform duration-300 shadow-2xl">
+        <div class="w-12 h-1.5 bg-gray-100 rounded-full mx-auto mb-8"></div>
+        <div class="text-center mb-8">
+          <div class="w-20 h-20 bg-red-50 text-red-600 rounded-[2.5rem] flex items-center justify-center mx-auto mb-4">
+            <i data-lucide="power" class="w-10 h-10"></i>
+          </div>
+          <h3 class="text-2xl font-black text-gray-900 uppercase tracking-tighter">Keluar Sistem?</h3>
+          <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Anda perlu login kembali nanti</p>
+        </div>
+        <div class="flex flex-col gap-3">
+          <button onclick="App.executeLogout()" class="w-full p-5 bg-red-600 text-white rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl shadow-red-100 active:scale-95 transition-all">Keluar Sekarang</button>
+          <button onclick="App.closeLogoutModal()" class="w-full p-5 bg-gray-50 text-gray-400 rounded-3xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all">Batal</button>
+        </div>
+      </div>
     </div>`;
   },
 
@@ -387,27 +404,49 @@ processOutConfirmation() {
   async submitDinas() {
     const title = document.getElementById('dinas_title').value;
     const file = document.getElementById('dinas_file').files[0];
-    if (!title || !file) return this.showToast("Isi data!", "error");
+    const btn = document.querySelector('#dinas-overlay button[onclick="App.submitDinas()"]');
     
+    if (!title || !file) return this.showToast("Lengkapi data dan foto!", "error");
+  
+    // Aktifkan Loading
+    btn.disabled = true;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = `<div class="flex items-center justify-center gap-2"><div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> <span>MENGIRIM...</span></div>`;
+  
     try {
       const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej));
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
         const res = await API.call({ 
-          action:'submit_dinas', 
-          user_id: this.user.User_ID, 
+          action: 'submit_dinas', 
+          user_id: this.user.User_ID || this.user.id, 
           title, 
           fileData: reader.result, 
           lat: pos.coords.latitude, 
           lng: pos.coords.longitude 
         });
-        if (res.success) { 
-          this.showToast("Laporan Terkirim!"); 
-          this.closeDinasForm(); 
+  
+        if (res.success) {
+          this.showToast("Laporan Dinas Terkirim!");
+          this.closeDinasForm();
+          // Reset Form
+          document.getElementById('dinas_title').value = "";
+          document.getElementById('dinas_file').value = "";
+          document.getElementById('file-name').innerText = "Pilih Foto Kegiatan";
+        } else {
+          this.showToast(res.message, "error");
         }
+        
+        // Kembalikan tombol
+        btn.disabled = false;
+        btn.innerHTML = originalText;
       };
-    } catch (e) { this.showToast("Gagal kirim laporan", "error"); }
+    } catch (e) {
+      this.showToast("Gagal mengambil lokasi/file", "error");
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
   },
 
   showToast(msg, type = "success") {
