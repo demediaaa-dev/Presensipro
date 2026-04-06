@@ -54,19 +54,24 @@ const FaceService = {
   },
 
   async processNow() {
-    // Tombol loading state
-    App.showToast("Memproses Presensi...", "success");
+    const video = document.getElementById('video');
     
+    // EFEK FREEZE: Hentikan stream kamera agar gambar membeku
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => track.stop());
+      // Biarkan video.srcObject tetap ada sebentar agar gambar tidak langsung hitam
+    }
+
+    App.showToast("Mengunci Lokasi...", "success");
+
     try {
-      // 1. Cek GPS dengan Timeout (agar tidak gantung jika GPS mati)
       const pos = await new Promise((res, rej) => {
-        navigator.geolocation.getCurrentPosition(res, rej, {
+        navigator.geolocation.getCurrentPosition(res, rej, { 
           enableHighAccuracy: true,
-          timeout: 5000
+          timeout: 5000 
         });
       });
-      
-      // 2. Kirim ke Backend (Pastikan action sesuai dengan Code.gs: 'submit_attendance')
+
       const res = await API.call({
         action: 'submit_attendance',
         user_id: App.user.User_ID,
@@ -75,16 +80,20 @@ const FaceService = {
       });
 
       if (res.success) {
-        App.showToast("Presensi Berhasil!", "success");
-        App.closePresence();
-        // Update dashboard jika perlu
-        App.render();
+        App.showToast("Berhasil! Data Tersimpan", "success");
+        // Beri jeda 1 detik agar user bisa lihat foto "freeze" nya sebelum ditutup
+        setTimeout(() => {
+          App.closePresence();
+          App.render();
+        }, 1000);
       } else {
         App.showToast(res.message, "error");
+        // Jika gagal, nyalakan lagi kameranya agar bisa coba lagi
+        this.initCamera(); 
       }
     } catch (e) {
-      console.error("Attendance Error:", e);
-      App.showToast("Gagal verifikasi lokasi/GPS", "error");
+      App.showToast("Gagal GPS. Cek Izin Lokasi!", "error");
+      this.initCamera();
     }
   }
 };
