@@ -43,20 +43,27 @@ const App = {
 
   async checkLocationAccess() {
     if (this.user && this.user.Role.toLowerCase() !== 'admin') {
-      navigator.geolocation.getCurrentPosition(async (pos) => {
-        const res = await API.call({
-          action: 'check_radius',
-          user_id: this.user.User_ID,
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude
-        });
-        
-        // Hanya render jika ada PERUBAHAN status radius
-        if (this.isWithinRadius !== res.success) {
+      // Gunakan watchPosition jika ingin update terus-menerus, 
+      // atau pastikan getCurrentPosition menggunakan High Accuracy
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const res = await API.call({
+            action: 'check_radius',
+            user_id: this.user.User_ID || this.user.id,
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy // Kirim akurasi untuk log (opsional)
+          });
           this.isWithinRadius = res.success;
           this.render();
+        },
+        (err) => console.error("GPS Error:", err),
+        { 
+          enableHighAccuracy: true, // WAJIB: Paksa pakai GPS Satelit
+          timeout: 10000, 
+          maximumAge: 0 // Jangan pakai data lokasi cache yang lama
         }
-      });
+      );
     }
   },
 
