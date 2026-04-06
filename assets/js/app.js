@@ -1,37 +1,48 @@
 const App = {
   user: null,
-  currentPage: 'dashboard',
+  currentPage: 'login', // Default ke login jika tidak ada session
   showPass: false,
   isWithinRadius: true,
-  attendanceStatus: 'none', // 'none', 'in', 'out'
+  attendanceStatus: 'none', 
   dataStats: { employees: 0, present: 0, leaves: 0 },
 
   init() {
     const saved = localStorage.getItem('sipanda_session');
     if (saved) {
-      this.user = JSON.parse(saved);
-      this.currentPage = 'dashboard';
-      this.checkLocationAccess();
-      this.getAttendanceStatus(); // Cek status absen saat startup
+      try {
+        this.user = JSON.parse(saved);
+        this.currentPage = 'dashboard';
+        this.checkLocationAccess();
+        this.getAttendanceStatus(); 
+      } catch (e) {
+        localStorage.removeItem('sipanda_session');
+      }
     }
     this.render();
   },
 
-  // Cek apakah user sudah absen masuk/pulang hari ini
-async getAttendanceStatus() {
-  // Cek apakah user sudah login dan punya ID
-  const idPegawai = this.user?.User_ID || this.user?.id;
-  
-  if (!idPegawai) return;
+  // --- PERBAIKAN DI SINI: Tutup kurung kurawal dan try catch yang benar ---
+  async getAttendanceStatus() {
+    const idPegawai = this.user?.User_ID || this.user?.id;
+    if (!idPegawai) return;
 
-  try {
-    const res = await API.call({
-      action: 'get_status',
-      user_id: idPegawai // Jangan biarkan undefined terkirim
-    });
+    try {
+      const res = await API.call({
+        action: 'get_status',
+        user_id: idPegawai
+      });
+      
+      if (res.success) {
+        this.attendanceStatus = res.status; // 'none', 'in', 'out'
+        this.render();
+      }
+    } catch (e) {
+      console.error("Gagal cek status absen:", e);
+    }
+  },
 
   async checkLocationAccess() {
-    if (this.user && this.user.Role.toLowerCase() !== 'admin') {
+    if (this.user && this.user.Role && this.user.Role.toLowerCase() !== 'admin') {
       try {
         navigator.geolocation.getCurrentPosition(async (pos) => {
           const res = await API.call({
@@ -51,11 +62,14 @@ async getAttendanceStatus() {
 
   render() {
     const root = document.getElementById('app');
+    if (!root) return;
+
     if (this.currentPage === 'login') {
       root.innerHTML = this.viewLogin();
-    } else {
-      root.innerHTML = (this.user.Role.toLowerCase() === 'admin') ? this.viewAdmin() : this.viewUser();
+    } else if (this.user) {
+      root.innerHTML = (this.user.Role && this.user.Role.toLowerCase() === 'admin') ? this.viewAdmin() : this.viewUser();
     }
+    
     lucide.createIcons();
     this.startClock();
   },
@@ -75,7 +89,7 @@ async getAttendanceStatus() {
           <div class="space-y-4 text-left" onkeydown="if(event.key==='Enter') App.handleLogin()">
             <div class="relative">
               <i data-lucide="user" class="absolute left-4 top-4 w-5 h-5 text-gray-400"></i>
-              <input id="username" type="text" placeholder="ID Pegawai / Username" class="w-full pl-12 p-4 bg-gray-50 rounded-2xl outline-none border border-transparent focus:border-red-500 transition-all">
+              <input id="username" type="text" placeholder="ID Pegawai" class="w-full pl-12 p-4 bg-gray-50 rounded-2xl outline-none border border-transparent focus:border-red-500 transition-all">
             </div>
             <div class="relative">
               <i data-lucide="lock" class="absolute left-4 top-4 w-5 h-5 text-gray-400"></i>
@@ -86,26 +100,32 @@ async getAttendanceStatus() {
             </div>
             <button onclick="App.handleLogin()" id="btnLogin" class="w-full bg-red-600 text-white font-bold p-4 rounded-2xl shadow-xl mt-6 uppercase text-xs tracking-widest active:scale-95 transition-all">Masuk ke Sistem</button>
           </div>
-          <p class="mt-16 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v2.0 Sinkronisasi Database</p>
+          <p class="mt-16 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v2.1 Stable Edition</p>
         </div>
       </div>`;
   },
 
   viewAdmin() {
-    return `<div class="p-10 text-center font-bold">Admin View - Dashboard Utama</div>`; // Versi singkat agar tidak terlalu panjang
+    return `
+      <div class="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6">
+        <div class="bg-white p-8 rounded-[40px] shadow-sm text-center w-full max-w-sm">
+          <h2 class="text-2xl font-black mb-2">Panel Admin</h2>
+          <p class="text-gray-500 text-sm mb-6 uppercase tracking-widest font-bold">Selamat Datang, ${this.user.Name}</p>
+          <button onclick="App.logout()" class="w-full p-4 bg-red-50 text-red-600 rounded-2xl font-bold">Logout</button>
+        </div>
+      </div>`;
   },
 
   viewUser() {
     const statusColor = this.isWithinRadius ? 'bg-green-500' : 'bg-red-500';
     const statusText = this.isWithinRadius ? 'DALAM RADIUS' : 'LUAR RADIUS';
     
-    // Logika Tombol Presensi Pulang
-    let btnClass = "btn-primary";
+    let btnClass = "bg-red-600";
     let btnLabel = "Presensi";
     let btnIcon = "camera";
 
     if (this.attendanceStatus === 'in') {
-      btnClass = "bg-indigo-600"; // Warna beda untuk pulang
+      btnClass = "bg-indigo-600"; 
       btnLabel = "Pulang";
       btnIcon = "log-out";
     } else if (this.attendanceStatus === 'out') {
@@ -115,13 +135,13 @@ async getAttendanceStatus() {
     }
 
     return `
-      <div class="header-red-section"></div>
+      <div class="header-red-section" style="background:linear-gradient(to bottom, #dc2626, #991b1b); height:260px; position:absolute; top:0; left:0; right:0; z-index:-1; border-radius:0 0 40px 40px;"></div>
       <div class="max-w-md mx-auto min-h-screen flex flex-col p-5 pb-32">
         
         <header class="flex justify-between items-center mb-8 mt-2 text-white px-1">
           <div class="flex items-center gap-3">
              <div class="w-12 h-12 rounded-full border-2 border-white/30 overflow-hidden shadow-lg bg-white/20 flex items-center justify-center font-black text-xl">
-                ${this.user.Name.charAt(0)}
+                ${this.user.Name ? this.user.Name.charAt(0) : 'U'}
              </div>
              <div>
                 <h1 class="text-lg font-bold leading-tight">${this.user.Name}</h1>
@@ -132,11 +152,11 @@ async getAttendanceStatus() {
         </header>
 
         <div class="text-center mb-8">
-          <h2 class="text-5xl font-black text-white tracking-tighter">KEHADIRAN</h2>
+          <h2 class="text-5xl font-black text-white tracking-tighter">SIPANDA</h2>
           <p id="clock" class="text-xs font-mono text-red-100 tracking-[0.3em] mt-2 font-bold opacity-80">00:00:00 WIB</p>
         </div>
 
-        <div class="glass-card p-6 mb-6">
+        <div class="bg-white p-6 mb-6 rounded-[35px] shadow-2xl shadow-red-900/10">
           <div class="flex justify-between items-start mb-6 border-b border-gray-50 pb-4">
              <div class="flex items-center gap-3 text-gray-800">
                 <div class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600"><i data-lucide="map-pin" class="w-5 h-5"></i></div>
@@ -145,7 +165,7 @@ async getAttendanceStatus() {
              </div>
              <div class="text-right">
                 <p class="text-sm font-black text-gray-800">${new Date().toLocaleDateString('id-ID', {weekday:'long', day:'2-digit', month:'short'})}</p>
-                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">SINKRON AKTIF</p>
+                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">SINKRON AKTIF</p>
              </div>
           </div>
           
@@ -197,23 +217,22 @@ async getAttendanceStatus() {
         <div class="bg-white w-full max-w-sm rounded-[40px] overflow-hidden animate-slide-up">
            <div class="p-8">
               <h3 class="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tighter text-center">Form Dinas Luar</h3>
-              <p class="text-xs text-gray-400 text-center mb-8">Lengkapi laporan kegiatan luar kantor</p>
-              <div class="space-y-4 text-left">
+              <div class="space-y-4 text-left mt-6">
                  <div>
                     <label class="text-[10px] font-black text-gray-400 uppercase ml-2">Nama Kegiatan</label>
-                    <input id="dinas_title" type="text" placeholder="Meeting Client A" class="w-full p-4 bg-gray-50 rounded-2xl text-sm outline-none border border-transparent focus:border-red-500">
+                    <input id="dinas_title" type="text" placeholder="Judul Kegiatan" class="w-full p-4 bg-gray-50 rounded-2xl text-sm outline-none border border-transparent focus:border-red-500">
                  </div>
                  <div>
                     <label class="text-[10px] font-black text-gray-400 uppercase ml-2">Lampiran Foto</label>
                     <input type="file" id="dinas_file" accept="image/*" class="hidden" onchange="document.getElementById('file-name').innerText = this.files[0].name">
                     <button onclick="document.getElementById('dinas_file').click()" class="w-full p-4 bg-red-50 text-red-600 rounded-2xl text-xs font-bold border-2 border-dashed border-red-200 flex items-center justify-center gap-2">
-                       <i data-lucide="camera" class="w-4 h-4"></i> <span id="file-name">Pilih Foto Kegiatan</span>
+                       <i data-lucide="camera" class="w-4 h-4"></i> <span id="file-name">Pilih Foto</span>
                     </button>
                  </div>
               </div>
               <div class="flex gap-3 mt-10">
                  <button onclick="App.closeDinasForm()" class="flex-1 p-4 bg-gray-100 text-gray-500 rounded-2xl font-bold text-xs uppercase tracking-widest">Batal</button>
-                 <button onclick="App.submitDinas()" class="flex-[2] p-4 bg-red-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-red-200">Kirim Laporan</button>
+                 <button onclick="App.submitDinas()" class="flex-[2] p-4 bg-red-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest">Kirim</button>
               </div>
            </div>
         </div>
@@ -227,12 +246,20 @@ async getAttendanceStatus() {
   async handleLogin() {
     const u = document.getElementById('username').value;
     const p = document.getElementById('password').value;
-    if (!u || !p) return this.showToast("Masukkan ID dan Password!", "error");
+    if (!u || !p) return this.showToast("Lengkapi data!", "error");
+    
     const btn = document.getElementById('btnLogin');
     btn.disabled = true;
     btn.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mx-auto"></div>`;
+    
     try {
-      const res = await API.call({ action: "login", username: u, password: p, currentDeviceId: navigator.userAgent });
+      const res = await API.call({ 
+        action: "login", 
+        username: u, 
+        password: p, 
+        currentDeviceId: navigator.userAgent 
+      });
+      
       if (res.success) {
         this.user = { User_ID: res.data.id, Name: res.data.name, Role: res.data.role };
         localStorage.setItem('sipanda_session', JSON.stringify(this.user));
@@ -246,13 +273,13 @@ async getAttendanceStatus() {
         btn.innerHTML = "Masuk ke Sistem";
       }
     } catch (e) {
-      this.showToast("Server sibuk, coba lagi", "error");
+      this.showToast("Gagal terhubung", "error");
       btn.disabled = false;
+      btn.innerHTML = "Masuk ke Sistem";
     }
   },
 
   startPresence() {
-    // Alert konfirmasi jika ingin absen pulang
     if (this.attendanceStatus === 'in') {
       if (!confirm("Konfirmasi Presensi Pulang?")) return;
     }
@@ -265,13 +292,14 @@ async getAttendanceStatus() {
       sheet.style.transform = 'translateY(0)';
       if (typeof FaceService !== 'undefined') FaceService.initCamera();
       lucide.createIcons();
+    } else {
+      this.showToast("Elemen modal presensi tidak ditemukan!", "error");
     }
   },
 
-  // Dipanggil dari face-logic.js setelah sukses
   onPresenceSuccess() {
-    this.showToast("Data Tersimpan!");
-    this.getAttendanceStatus(); // Refresh status (none -> in -> out)
+    this.showToast("Presensi Berhasil!");
+    this.getAttendanceStatus(); 
     this.closePresence();
   },
 
@@ -293,13 +321,24 @@ async getAttendanceStatus() {
     const title = document.getElementById('dinas_title').value;
     const file = document.getElementById('dinas_file').files[0];
     if (!title || !file) return this.showToast("Isi data!", "error");
+    
     try {
       const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej));
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
-        const res = await API.call({ action:'submit_dinas', user_id: this.user.User_ID, title, fileData: reader.result, lat: pos.coords.latitude, lng: pos.coords.longitude });
-        if (res.success) { this.showToast("Laporan Terkirim!"); this.closeDinasForm(); }
+        const res = await API.call({ 
+          action:'submit_dinas', 
+          user_id: this.user.User_ID, 
+          title, 
+          fileData: reader.result, 
+          lat: pos.coords.latitude, 
+          lng: pos.coords.longitude 
+        });
+        if (res.success) { 
+          this.showToast("Laporan Terkirim!"); 
+          this.closeDinasForm(); 
+        }
       };
     } catch (e) { this.showToast("Gagal kirim laporan", "error"); }
   },
@@ -316,11 +355,26 @@ async getAttendanceStatus() {
 
   startClock() {
     const el = document.getElementById('clock');
-    if (el) setInterval(() => el.innerText = new Date().toLocaleTimeString('id-ID') + " WIB", 1000);
+    if (el) {
+      if (this.clockTimer) clearInterval(this.clockTimer);
+      this.clockTimer = setInterval(() => {
+        el.innerText = new Date().toLocaleTimeString('id-ID') + " WIB";
+      }, 1000);
+    }
   },
 
-  logout() { localStorage.removeItem('sipanda_session'); this.user = null; this.currentPage = 'login'; this.render(); },
-  togglePass() { this.showPass = !this.showPass; this.render(); }
+  logout() { 
+    localStorage.removeItem('sipanda_session'); 
+    this.user = null; 
+    this.currentPage = 'login'; 
+    this.render(); 
+  },
+
+  togglePass() { 
+    this.showPass = !this.showPass; 
+    this.render(); 
+  }
 };
 
-App.init();
+// Menjalankan inisialisasi aplikasi
+document.addEventListener('DOMContentLoaded', () => App.init());
