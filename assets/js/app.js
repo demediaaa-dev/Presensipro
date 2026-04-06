@@ -5,7 +5,6 @@ const App = {
   isWithinRadius: true,
   attendanceStatus: 'none', 
   dataStats: { employees: 0, present: 0, leaves: 0 },
-Frender()
   historyTab: 'presensi', // default tab
   historyData: { presensi: [], dinas: [] },
 
