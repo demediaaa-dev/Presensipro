@@ -5,7 +5,7 @@ const App = {
   isWithinRadius: true,
   attendanceStatus: 'none', 
   dataStats: { employees: 0, present: 0, leaves: 0 },
-
+Frender()
   historyTab: 'presensi', // default tab
   historyData: { presensi: [], dinas: [] },
 
@@ -337,20 +337,42 @@ const App = {
   },
 
   renderPresensiList() {
-    if (this.historyData.presensi.length === 0) return `<p class="text-center text-gray-400 py-10 text-xs font-bold uppercase">Belum ada data</p>`;
-    return this.historyData.presensi.map(item => `
-      <div class="bg-white p-5 rounded-3xl border border-gray-50 shadow-sm flex justify-between items-center">
-        <div>
-          <p class="text-[10px] font-black text-gray-400 uppercase mb-1">${item.date}</p>
-          <div class="flex gap-4">
-            <div><p class="text-[9px] text-gray-400 uppercase font-bold">Masuk</p><p class="text-sm font-black text-gray-800">${item.in}</p></div>
-            <div><p class="text-[9px] text-gray-400 uppercase font-bold">Pulang</p><p class="text-sm font-black text-gray-800">${item.out || '--:--'}</p></div>
+      if (!this.historyData.presensi || this.historyData.presensi.length === 0) {
+        return `<p class="text-center text-gray-400 py-10 text-xs font-bold uppercase tracking-widest">Belum ada data</p>`;
+      }
+  
+      return this.historyData.presensi.map(item => {
+        // Fungsi pembantu untuk mengambil jam saja dari string "HH:mm:ss" atau Date
+        const formatTime = (timeStr) => {
+          if (!timeStr || timeStr === '--:--') return '--:--';
+          // Ambil 5 karakter pertama (HH:mm)
+          return timeStr.toString().substring(0, 5);
+        };
+  
+        return `
+          <div class="bg-white p-5 rounded-[2rem] border border-gray-50 shadow-sm flex justify-between items-center mb-1">
+            <div>
+              <p class="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-wider">${item.date}</p>
+              <div class="flex gap-6">
+                <div>
+                  <p class="text-[9px] text-gray-300 uppercase font-bold mb-0.5">Masuk</p>
+                  <p class="text-sm font-black text-gray-800">${formatTime(item.in)}</p>
+                </div>
+                <div class="border-l border-gray-100 pl-6">
+                  <p class="text-[9px] text-gray-300 uppercase font-bold mb-0.5">Pulang</p>
+                  <p class="text-sm font-black text-gray-800">${formatTime(item.out)}</p>
+                </div>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="px-3 py-1.5 bg-green-50 text-green-600 text-[9px] font-black rounded-xl uppercase tracking-tighter">
+                ${item.status || 'HADIR'}
+              </span>
+            </div>
           </div>
-        </div>
-        <span class="px-3 py-1.5 bg-green-50 text-green-600 text-[9px] font-black rounded-lg uppercase">${item.status}</span>
-      </div>
-    `).join('');
-  },
+        `;
+      }).join('');
+    },
 
   renderDinasList() {
     if (this.historyData.dinas.length === 0) return `<p class="text-center text-gray-400 py-10 text-xs font-bold uppercase">Belum ada data</p>`;
