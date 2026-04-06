@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbyPYM2DfS99TVkJJXqIaFBjot14P989Zyxc5Y8Zq18t5MS5_0ZWlvRLqCwgsc7WwoqkyQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbz-sqQbTA5-10_jndeHx_sToINGq1kipYsbnDXDM_JjDoPkhwoOW32XXCklyKK-Df3PHA/exec";
 
 const API = {
   async call(data) { // Diubah dari 'post' ke 'call' agar sinkron dengan app.js
