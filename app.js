@@ -185,23 +185,19 @@ const App = {
     openCameraModal() {
         const overlay = document.getElementById('modal-overlay');
         const sheet = document.getElementById('presence-sheet');
-        const btnAction = sheet.querySelector('button'); // Tombol di dalam modal
     
         if (overlay && sheet) {
+            // 1. Tampilkan modal dulu
             overlay.style.visibility = 'visible';
             overlay.style.opacity = '1';
             sheet.style.transform = 'translateY(0)';
             
-            // SESUAIKAN TEKS TOMBOL SECARA DINAMIS
-            if (this.hasFaceData) {
-                btnAction.innerText = this.attendanceStatus === 'in' ? "KONFIRMASI PULANG" : "KONFIRMASI PRESENSI";
-                btnAction.onclick = () => FaceService.processNow(); 
-            } else {
-                btnAction.innerText = "DAFTARKAN WAJAH SAYA";
-                btnAction.onclick = () => Admin.processRegistration();
-            }
-    
-            if (typeof FaceService !== 'undefined') FaceService.initCamera();
+            // 2. Beri jeda 300ms agar transisi selesai dan elemen video siap
+            setTimeout(() => {
+                if (typeof FaceService !== 'undefined') {
+                    FaceService.initCamera();
+                }
+            }, 300);
         }
     },
     
