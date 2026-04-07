@@ -185,12 +185,30 @@ const App = {
     openCameraModal() {
         const overlay = document.getElementById('modal-overlay');
         const sheet = document.getElementById('presence-sheet');
+        const btnAction = sheet.querySelector('button'); // Tombol di dalam modal
+    
         if (overlay && sheet) {
             overlay.style.visibility = 'visible';
             overlay.style.opacity = '1';
             sheet.style.transform = 'translateY(0)';
+            
+            // SESUAIKAN TEKS TOMBOL SECARA DINAMIS
+            if (this.hasFaceData) {
+                btnAction.innerText = this.attendanceStatus === 'in' ? "KONFIRMASI PULANG" : "KONFIRMASI PRESENSI";
+                btnAction.onclick = () => FaceService.processNow(); 
+            } else {
+                btnAction.innerText = "DAFTARKAN WAJAH SAYA";
+                btnAction.onclick = () => Admin.processRegistration();
+            }
+    
             if (typeof FaceService !== 'undefined') FaceService.initCamera();
         }
+    },
+    
+    // Sederhanakan fungsi ini
+    startSelfRegistration() {
+        Admin.currentRegID = this.user.id; 
+        this.openCameraModal();
     },
 
     closePresence() {
@@ -246,21 +264,6 @@ const App = {
         setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, 3000);
     },
 
-    startSelfRegistration() {
-        // Gunakan ID user yang sedang login
-        Admin.currentRegID = this.user.id; 
-        this.openCameraModal();
-        
-        const btn = document.querySelector('#presence-sheet button');
-        if (btn) {
-            btn.innerText = "KONFIRMASI WAJAH SAYA";
-            btn.onclick = async () => {
-                await Admin.processRegistration();
-                this.hasFaceData = true;
-                this.render(); 
-            };
-        }
-    }
 };
 
 const Admin = {
