@@ -1,0 +1,21 @@
+<div class="flex items-center justify-center min-h-screen p-6 bg-white">
+    <div class="w-full max-w-sm p-4 text-center">
+        <div class="flex justify-center mb-8 text-red-600">
+            <div class="p-6 bg-red-50 rounded-[2.5rem]"><i data-lucide="fingerprint" class="w-14 h-14"></i></div>
+        </div>
+        <h2 class="text-4xl font-extrabold mb-1 tracking-tighter text-gray-900 uppercase">Sipanda</h2>
+        <p class="text-[11px] text-gray-400 font-bold uppercase tracking-[0.4em] mb-12">Attendance System</p>
+        
+        <div class="space-y-4 text-left">
+            <div class="relative">
+                <i data-lucide="user" class="absolute left-4 top-4 w-5 h-5 text-gray-400"></i>
+                <input id="username" type="text" placeholder="ID Pegawai" class="w-full pl-12 p-4 bg-gray-50 rounded-2xl outline-none border border-transparent focus:border-red-500">
+            </div>
+            <div class="relative">
+                <i data-lucide="lock" class="absolute left-4 top-4 w-5 h-5 text-gray-400"></i>
+                <input id="password" type="password" placeholder="Password" class="w-full pl-12 p-4 bg-gray-50 rounded-2xl outline-none border border-transparent focus:border-red-500">
+            </div>
+            <button onclick="App.handleLogin()" id="btnLogin" class="w-full bg-red-600 text-white font-bold p-4 rounded-2xl shadow-xl mt-6 uppercase text-xs tracking-widest active:scale-95 transition-all">Masuk ke Sistem</button>
+        </div>
+    </div>
+</div>
