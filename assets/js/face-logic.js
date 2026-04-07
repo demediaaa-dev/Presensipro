@@ -22,13 +22,28 @@ const FaceService = {
     async initCamera() {
         await this.loadModels();
         const video = document.getElementById('video');
+        if (!video) return;
+    
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { width: 400, height: 400, facingMode: "user" } 
+                video: { 
+                    width: { ideal: 640 }, 
+                    height: { ideal: 480 }, 
+                    facingMode: "user" 
+                } 
             });
+            
             video.srcObject = stream;
+            
+            // Tambahkan ini untuk memastikan video berputar setelah stream nempel
+            video.onloadedmetadata = () => {
+                video.play();
+                console.log("Kamera Aktif");
+            };
+    
         } catch (err) {
-            App.showToast("Kamera tidak diizinkan", "error");
+            console.error("Error Kamera:", err);
+            App.showToast("Kamera diblokir atau tidak ditemukan", "error");
         }
     },
 
