@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sipanda - Presensi Digital</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="bg-[#F3F4F6] min-h-screen text-gray-900 font-sans overflow-x-hidden">
+
+    <div id="app"></div>
+
+    <div id="modal-overlay" onclick="App.closePresence()" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] invisible opacity-0 transition-all duration-300"></div>
+    <div id="presence-sheet" class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white z-[101] translate-y-full transition-transform duration-500 rounded-t-[40px] shadow-2xl">
+        <div class="sheet-handle w-10 h-1 bg-gray-200 rounded-full mx-auto my-3"></div>
+        <div class="p-8 pt-2 text-center">
+            <h3 class="text-xl font-black text-gray-900 mb-1 uppercase tracking-tighter">Verifikasi Wajah</h3>
+            <div class="camera-view relative w-60 h-60 rounded-full border-4 border-red-600 overflow-hidden mx-auto shadow-2xl bg-black">
+                <video id="video" autoplay muted playsinline class="w-full h-full object-cover"></video>
+                <div class="absolute top-0 left-0 w-full h-1 bg-red-500 shadow-[0_0_15px_red] animate-scan"></div>
+            </div>
+            <button onclick="FaceService.processNow()" class="w-full bg-red-600 text-white font-bold p-4 rounded-2xl mt-6 active:scale-95 transition-all uppercase tracking-widest text-xs">AMBIL PRESENSI</button>
+        </div>
+    </div>
+
+    <div id="logout-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[400] hidden flex items-end justify-center transition-all duration-300">
+        <div id="logout-sheet" class="bg-white w-full max-w-md rounded-t-[40px] p-8 pb-10 translate-y-full transition-transform duration-300 shadow-2xl">
+            <div class="w-12 h-1.5 bg-gray-100 rounded-full mx-auto mb-8"></div>
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 bg-red-50 text-red-600 rounded-[2.5rem] flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="power" class="w-10 h-10"></i>
+                </div>
+                <h3 class="text-2xl font-black text-gray-900 uppercase tracking-tighter">Keluar Sistem?</h3>
+                <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Anda perlu login kembali nanti</p>
+            </div>
+            <div class="flex flex-col gap-3">
+                <button onclick="App.executeLogout()" class="w-full p-5 bg-red-600 text-white rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl shadow-red-100 active:scale-95 transition-all">Keluar Sekarang</button>
+                <button onclick="App.closeLogoutModal()" class="w-full p-5 bg-gray-50 text-gray-400 rounded-3xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirm-out-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] hidden flex items-end justify-center transition-all duration-300">
+        <div id="confirm-out-sheet" class="bg-white w-full max-w-md rounded-t-[40px] p-8 pb-10 translate-y-full transition-transform duration-300 shadow-[0_-20px_50px_rgba(0,0,0,0.1)]">
+            <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-8"></div>
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-[2.5rem] flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="log-out" class="w-10 h-10"></i>
+                </div>
+                <h3 class="text-2xl font-black text-gray-900 uppercase tracking-tighter">Selesai Bertugas?</h3>
+                <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">Pastikan pekerjaan Anda telah selesai</p>
+            </div>
+            <div class="flex flex-col gap-3">
+                <button onclick="App.processOutConfirmation()" class="w-full p-5 bg-indigo-600 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-indigo-100 active:scale-95 transition-all">Ya, Presensi Pulang</button>
+                <button onclick="App.closeConfirmOut()" class="w-full p-5 bg-gray-50 text-gray-400 rounded-3xl font-black text-xs uppercase tracking-[0.2em] active:scale-95 transition-all">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/face-logic.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
