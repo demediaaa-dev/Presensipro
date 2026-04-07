@@ -330,10 +330,11 @@ const Admin = {
             });
 
             if (res.success) {
-                App.showToast("Wajah Berhasil Terdaftar!", "success");
-                App.closePresence();
-                const input = document.getElementById('reg-user-id');
-                if (input) input.value = '';
+                    App.showToast("Wajah Berhasil Terdaftar!", "success");
+                    App.hasFaceData = true; // UPDATE STATUS INI
+                    App.closePresence();
+                    
+                    setTimeout(() => App.render(), 500); 
             } else {
                 App.showToast(res.message, "error");
             }
