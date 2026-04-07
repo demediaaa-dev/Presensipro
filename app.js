@@ -182,33 +182,36 @@ const App = {
         this.openCameraModal();
     },
 
-    // Update bagian ini di app.js
     openCameraModal() {
         const overlay = document.getElementById('modal-overlay');
         const sheet = document.getElementById('presence-sheet');
-        const btnAction = sheet.querySelector('button');
+        
+        // Gunakan selector yang spesifik agar tidak salah target ke tombol 'Batal'
+        const btnAction = document.querySelector('#presence-sheet button:last-child');
     
         if (overlay && sheet) {
             overlay.style.visibility = 'visible';
             overlay.style.opacity = '1';
             sheet.style.transform = 'translateY(0)';
             
-            // Sesuaikan teks tombol
+            // Logika teks tombol yang benar
             if (this.hasFaceData) {
                 btnAction.innerText = this.attendanceStatus === 'in' ? "KONFIRMASI PULANG" : "KONFIRMASI PRESENSI";
                 btnAction.onclick = () => FaceService.processNow(); 
             } else {
                 btnAction.innerText = "DAFTARKAN WAJAH SAYA";
+                // Pastikan jika pendaftaran mandiri, arahkan ke Admin.processRegistration
                 btnAction.onclick = () => Admin.processRegistration();
             }
     
-            // BERI JEDA LEBIH LAMA (500ms) UNTUK PENYIAPAN DOM
+            // Kamera hitam sering terjadi karena DOM belum siap sepenuhnya
+            // Kita beri jeda dan pastikan FaceService terpanggil
             setTimeout(() => {
                 if (typeof FaceService !== 'undefined') {
                     console.log("Mencoba menyalakan kamera...");
                     FaceService.initCamera();
                 }
-            }, 500);
+            }, 400); 
         }
     },
     
