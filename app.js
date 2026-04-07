@@ -11,10 +11,23 @@ const App = {
     async init() {
         const saved = localStorage.getItem('sipanda_session');
         if (saved) {
-            this.user = JSON.parse(saved);
-            this.currentPage = (this.user.Role.toLowerCase() === 'admin') ? 'admin' : 'dashboard';
-            // Memanggil data status nyata dari database
-            await Promise.all([this.getAttendanceStatus(), this.checkLocationAccess()]);
+            try {
+                this.user = JSON.parse(saved);
+                
+                // Set halaman berdasarkan role
+                this.currentPage = (this.user.Role.toLowerCase() === 'admin') ? 'admin' : 'dashboard';
+                
+                // Ambil status absensi DAN wajah secara berurutan agar sinkron
+                // Jangan pakai Promise.all jika ingin memastikan data hasFaceData terisi dulu
+                await this.getAttendanceStatus();
+                await this.checkLocationAccess();
+                
+                console.log("Init selesai. Status wajah:", this.hasFaceData);
+            } catch (err) {
+                console.error("Gagal inisialisasi sesi:", err);
+                localStorage.removeItem('sipanda_session');
+                this.currentPage = 'login';
+            }
         }
         this.render();
     },
