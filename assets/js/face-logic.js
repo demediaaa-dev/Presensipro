@@ -19,10 +19,14 @@ const FaceService = {
         }
     },
 
+// Update di face-logic.js
     async initCamera() {
         await this.loadModels();
         const video = document.getElementById('video');
-        if (!video) return;
+        if (!video) {
+            console.error("Elemen video tidak ditemukan di DOM!");
+            return;
+        }
     
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -35,18 +39,20 @@ const FaceService = {
             
             video.srcObject = stream;
             
-            // Tambahkan ini untuk memastikan video berputar setelah stream nempel
-            video.onloadedmetadata = () => {
+            // Paksa Play
+            try {
+                await video.play();
+                console.log("Stream kamera berhasil dijalankan");
+            } catch (e) {
+                console.warn("Autoplay dicegah, mencoba play manual...", e);
                 video.play();
-                console.log("Kamera Aktif");
-            };
+            }
     
         } catch (err) {
-            console.error("Error Kamera:", err);
-            App.showToast("Kamera diblokir atau tidak ditemukan", "error");
+            console.error("Error getUserMedia:", err);
+            App.showToast("Kamera error: " + err.name, "error");
         }
     },
-
     stopCamera() {
         const video = document.getElementById('video');
         if (video && video.srcObject) {
