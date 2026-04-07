@@ -40,80 +40,62 @@ const FaceService = {
     },
 
     async processNow() {
-        if (typeof faceapi === 'undefined') {
-            return App.showToast("Library AI belum siap!", "error");
-        }
-
-        if (App.currentPage === 'admin') {
+        if (typeof faceapi === 'undefined') return App.showToast("AI belum siap!", "error");
+    
+        const video = document.getElementById('video');
+        if (!video) return;
+    
+        // JIKA USER BELUM PUNYA DATA WAJAH -> JALANKAN PENDAFTARAN
+        if (!App.hasFaceData || App.currentPage === 'admin') {
             Admin.processRegistration();
-        } else {
-            try {
-                const video = document.getElementById('video');
-                if (!video) return App.showToast("Kamera tidak ditemukan!", "error");
-
-                App.showToast("Memverifikasi Wajah...", "info");
-
-                // 1. Deteksi wajah dari kamera
-                const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
-                                              .withFaceLandmarks()
-                                              .withFaceDescriptor();
-
-                if (!detection) return App.showToast("Wajah tidak terdeteksi!", "error");
-
-                // 2. Ambil Descriptor Master dari Database via API
-                const res = await API.call({ action: "get_face_data", user_id: App.user.id });
-                
-                if (!res.success || !res.faceData) {
-                    return App.showToast("Data wajah master tidak ditemukan!", "error");
-                }
-
-                // 3. Bandingkan Wajah (Face Matching)
+            return;
+        }
+    
+        // JIKA USER SUDAH PUNYA DATA WAJAH -> JALANKAN PRESENSI
+        try {
+            App.showToast("Memverifikasi Wajah...", "info");
+    
+            const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+                                          .withFaceLandmarks()
+                                          .withFaceDescriptor();
+    
+            if (!detection) return App.showToast("Wajah tidak terdeteksi!", "error");
+    
+            // Ambil data master untuk dibandingan
+            const res = await API.call({ action: "get_face_data", user_id: App.user.id });
+            
+            if (res.success && res.faceData) {
                 const masterDescriptor = new Float32Array(JSON.parse(res.faceData));
                 const distance = faceapi.euclideanDistance(detection.descriptor, masterDescriptor);
-
-                console.log("Tingkat Ketidakmiripan (Distance):", distance);
-
-                // Batas toleransi (0.5 - 0.6). Jika lebih besar, berarti orang lain.
-                if (distance > 0.5) {
-                    return App.showToast("Wajah tidak cocok!", "error");
-                }
-
-                // 4. Jika Cocok, kirim presensi
+    
+                if (distance > 0.5) return App.showToast("Wajah tidak cocok!", "error");
+                
+                // Lolos verifikasi, panggil submit presensi
                 this.submitAttendance();
-
-            } catch (error) {
-                console.error("Gagal verifikasi:", error);
-                App.showToast("Gagal memproses data wajah", "error");
+            } else {
+                App.showToast("Data wajah tidak ditemukan di server", "error");
             }
+        } catch (error) {
+            console.error(error);
+            App.showToast("Gagal memproses wajah", "error");
         }
     },
-
+    
     async submitAttendance() {
         try {
-            // Ambil koordinat (Default Jakarta jika gagal/dummy)
-            const lat = -6.2000; 
-            const lng = 106.8166;
-
             const res = await API.call({ 
                 action: "process_attendance", 
                 user_id: App.user.id,
-                lat: lat,
-                lng: lng
+                lat: -6.2, lng: 106.8 // Ganti dengan logika navigasi asli nanti
             });
-
+    
             if (res.success) {
                 App.showToast(res.message, "success");
                 App.closePresence();
-                // Tunggu sebentar lalu refresh status dan UI
                 setTimeout(async () => {
                     await App.getAttendanceStatus();
                     App.render();
                 }, 500);
-            } else {
-                App.showToast(res.message, "error");
             }
-        } catch (e) {
-            App.showToast("Gagal mengirim data presensi", "error");
-        }
+        } catch (e) { App.showToast("Gagal kirim data", "error"); }
     }
-};
