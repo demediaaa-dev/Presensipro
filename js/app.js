@@ -30,17 +30,16 @@ const App = {
         this.router();
     },
 
-// --- FUNGSI ROUTER (PERBAIKAN UTAMA) ---
-    async router() {
+  async router() {
         const hash = window.location.hash || '#login';
         const root = document.getElementById('app-content');
         if (!root) return;
 
-        // Pastikan modal tertutup saat pindah halaman
-        this.closePresence();
-        this.closeLogoutModal();
+        // Reset state UI sebelum pindah
+        if (typeof this.closePresence === 'function') this.closePresence();
+        if (typeof this.closeLogoutModal === 'function') this.closeLogoutModal();
 
-        let pageFile = 'pages/login.html';
+        let pageFile = '';
         let isErrorPage = false;
 
         // Logika Proteksi Rute
@@ -53,52 +52,65 @@ const App = {
         } 
         else if (hash === '#dashboard') {
             if (!this.user) { window.location.hash = '#login'; return; }
-            if (this.user.Role.toLowerCase() !== 'user') { pageFile = 'pages/error.html'; isErrorPage = true; }
-            else { pageFile = 'pages/dashboard-user.html'; }
+            pageFile = (this.user.Role.toLowerCase() === 'admin') ? 'pages/dashboard-admin.html' : 'pages/dashboard-user.html';
         } 
         else if (hash === '#admin') {
             if (!this.user) { window.location.hash = '#login'; return; }
-            if (this.user.Role.toLowerCase() !== 'admin') { pageFile = 'pages/error.html'; isErrorPage = true; }
-            else { pageFile = 'pages/dashboard-admin.html'; }
+            if (this.user.Role.toLowerCase() !== 'admin') { 
+                pageFile = 'pages/error.html'; 
+                isErrorPage = true; 
+            } else { 
+                pageFile = 'pages/dashboard-admin.html'; 
+            }
         }
         else if (hash === '#download') {
             pageFile = 'pages/download.html';
-            isErrorPage = true; // Agar background merah index sembunyi
+            isErrorPage = true;
         }
         else {
             pageFile = 'pages/error.html';
             isErrorPage = true;
         }
 
-        // Proses Fetch HTML
         try {
+            console.log("Memuat halaman:", pageFile);
             const res = await fetch(pageFile);
+            
+            if (!res.ok) throw new Error(`Gagal load ${pageFile}`);
+            
             const html = await res.text();
             root.innerHTML = html;
 
-            // Kontrol Background Merah di Index.html
+            // Perbaikan Kontrol Background Merah (Gunakan Optional Chaining)
             const bgRed = document.querySelector('.header-red-section');
-            if (hash === '#login' || isErrorPage) {
-                if(bgRed) bgRed.style.display = 'none';
-            } else {
-                if(bgRed) bgRed.style.display = 'block';
+            if (bgRed) {
+                bgRed.style.display = (hash === '#login' || isErrorPage) ? 'none' : 'block';
             }
 
-            // Inisialisasi Ulang Icon & Data
-            lucide.createIcons();
+            // Jalankan fungsi inisialisasi jika elemennya sudah muncul di DOM
+            if (window.lucide) lucide.createIcons();
             
             if (!isErrorPage && this.user) {
-                this.initPageData();
-                if (hash === '#dashboard') await this.syncData();
-                if (hash === '#admin') Admin.init();
-                this.startClock();
+                // Beri jeda sedikit agar DOM benar-benar siap
+                setTimeout(async () => {
+                    this.initPageData();
+                    if (hash === '#dashboard') await this.syncData();
+                    if (hash === '#admin' && typeof Admin !== 'undefined') Admin.init();
+                    this.startClock();
+                }, 50);
             }
         } catch (e) {
             console.error("Router Error:", e);
-            root.innerHTML = "Gagal memuat halaman.";
+            root.innerHTML = `
+                <div class="p-10 text-center">
+                    <h1 class="text-xl font-bold text-red-600">404 / Error</h1>
+                    <p class="text-gray-500">${e.message}</p>
+                    <a href="#login" class="text-indigo-600 underline">Kembali ke Login</a>
+                </div>
+            `;
         }
     },
-
+  
     // --- FUNGSI INSTALL PWA ---
     installApp: async () => {
         if (!deferredPrompt) {
