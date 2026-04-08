@@ -28,24 +28,45 @@ const App = {
         const root = document.getElementById('app-content');
         if (!root) return;
 
-        // 1. Ambil data session terbaru
         const session = JSON.parse(localStorage.getItem('sipanda_session'));
         this.user = session;
 
         let pageFile = 'pages/login.html';
         let isError = false;
 
-        // 2. VALIDASI AKSES
-        if (hash === '#dashboard') {
-            if (!this.user) { window.location.hash = '#login'; return; }
-            pageFile = 'pages/dashboard-user.html';
-        } 
-        
-        else if (hash === '#admin') {
-            // Hanya role 'admin' yang boleh masuk
+        // --- 1. HALAMAN LOGIN ---
+        if (hash === '#login') {
+            if (this.user) {
+                // Jika sudah login, paksa ke halaman masing-masing
+                window.location.hash = (this.user.Role.toLowerCase() === 'admin') ? '#admin' : '#dashboard';
+                return;
+            }
+            pageFile = 'pages/login.html';
+        }
+
+        // --- 2. HALAMAN USER (Karyawan) ---
+        else if (hash === '#dashboard' || hash === '#history') {
             if (!this.user) { 
                 window.location.hash = '#login'; return; 
-            } else if (this.user.Role.toLowerCase() !== 'admin') {
+            }
+            
+            // PROTEKSI: Jika Admin coba masuk ke halaman User
+            if (this.user.Role.toLowerCase() !== 'user') {
+                isError = true;
+                pageFile = 'pages/error.html';
+            } else {
+                pageFile = (hash === '#dashboard') ? 'pages/dashboard-user.html' : 'pages/history.html';
+            }
+        }
+
+        // --- 3. HALAMAN ADMIN ---
+        else if (hash === '#admin') {
+            if (!this.user) { 
+                window.location.hash = '#login'; return; 
+            }
+
+            // PROTEKSI: Jika User (karyawan) coba masuk ke halaman Admin
+            if (this.user.Role.toLowerCase() !== 'admin') {
                 isError = true;
                 pageFile = 'pages/error.html';
             } else {
@@ -53,50 +74,39 @@ const App = {
             }
         }
 
-        else if (hash === '#history') {
-            if (!this.user) { window.location.hash = '#login'; return; }
-            pageFile = 'pages/history.html';
-        }
-
-        else if (hash === '#login') {
-            // Jika sudah login tapi coba buka halaman login, lempar ke dashboard
-            if (this.user) {
-                window.location.hash = (this.user.Role.toLowerCase() === 'admin') ? '#admin' : '#dashboard';
-                return;
-            }
-            pageFile = 'pages/login.html';
-        }
-        
+        // --- 4. ROUTE TIDAK DIKENAL ---
         else {
-            // Route tidak dikenal
             isError = true;
             pageFile = 'pages/error.html';
         }
 
-        // 3. FETCH HALAMAN
+        // --- PROSES FETCH & RENDER ---
         try {
             const res = await fetch(pageFile);
             const html = await res.text();
             root.innerHTML = html;
 
-            // Inisialisasi library/data setelah HTML masuk
             lucide.createIcons();
             
-            if (hash === '#admin' && !isError) {
-                Admin.init(); 
-            }
-
-            if (this.user && !isError && hash !== '#login') {
-                this.initPageData();
-                await this.syncData();
-                this.startClock();
+            // Eksekusi logika hanya jika bukan halaman error
+            if (!isError) {
+                if (hash === '#admin') {
+                    Admin.init(); 
+                }
+                
+                if (this.user && hash !== '#login') {
+                    this.initPageData();
+                    // Hanya syncData jika di dashboard user
+                    if(hash === '#dashboard') await this.syncData();
+                    this.startClock();
+                }
             }
         } catch (e) {
             console.error("Router Error:", e);
             root.innerHTML = `<div class="p-10 text-center">Gagal memuat halaman.</div>`;
         }
     },
-
+    
     showToast(message, type = 'info') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
