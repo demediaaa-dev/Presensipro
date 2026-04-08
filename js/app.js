@@ -30,84 +30,112 @@ const App = {
         this.router();
     },
 
-  async router() {
+    async router() {
         const hash = window.location.hash || '#login';
         const root = document.getElementById('app-content');
         if (!root) return;
 
-        // Reset state UI sebelum pindah
+        // --- 1. CLEANUP STATE (Penting untuk PWA agar tidak berat) ---
         if (typeof this.closePresence === 'function') this.closePresence();
         if (typeof this.closeLogoutModal === 'function') this.closeLogoutModal();
+        if (this.timer) clearInterval(this.timer); // Hentikan jam lama sebelum ganti halaman
 
-        let pageFile = '';
-        let isErrorPage = false;
+        let pageFile = 'pages/login.html';
+        let isFullPage = false; // Flag untuk sembunyikan bg merah (login/error)
 
-        // Logika Proteksi Rute
+        // --- 2. LOGIKA PROTEKSI RUTE & ROLE ---
         if (hash === '#login') {
             if (this.user) {
                 window.location.hash = (this.user.Role.toLowerCase() === 'admin') ? '#admin' : '#dashboard';
                 return;
             }
             pageFile = 'pages/login.html';
+            isFullPage = true;
         } 
         else if (hash === '#dashboard') {
             if (!this.user) { window.location.hash = '#login'; return; }
-            pageFile = (this.user.Role.toLowerCase() === 'admin') ? 'pages/dashboard-admin.html' : 'pages/dashboard-user.html';
+            
+            // Proteksi: Jika admin nyasar ke dashboard user, arahkan ke admin
+            if (this.user.Role.toLowerCase() === 'admin') {
+                window.location.hash = '#admin';
+                return;
+            }
+            pageFile = 'pages/dashboard-user.html';
         } 
         else if (hash === '#admin') {
             if (!this.user) { window.location.hash = '#login'; return; }
+            
+            // Proteksi: Jika user biasa coba akses admin
             if (this.user.Role.toLowerCase() !== 'admin') { 
                 pageFile = 'pages/error.html'; 
-                isErrorPage = true; 
+                isFullPage = true; 
             } else { 
                 pageFile = 'pages/dashboard-admin.html'; 
             }
         }
         else if (hash === '#download') {
             pageFile = 'pages/download.html';
-            isErrorPage = true;
+            isFullPage = true;
         }
         else {
             pageFile = 'pages/error.html';
-            isErrorPage = true;
+            isFullPage = true;
         }
 
+        // --- 3. PROSES FETCH & RENDER ---
         try {
-            console.log("Memuat halaman:", pageFile);
+            // Beri feedback visual saat loading (opsional)
+            root.style.opacity = '0.5';
+
             const res = await fetch(pageFile);
-            
-            if (!res.ok) throw new Error(`Gagal load ${pageFile}`);
+            if (!res.ok) throw new Error(`Halaman ${pageFile} tidak ditemukan.`);
             
             const html = await res.text();
             root.innerHTML = html;
 
-            // Perbaikan Kontrol Background Merah (Gunakan Optional Chaining)
+            // --- 4. KONTROL BACKGROUND MERAH (FIX BLANK) ---
             const bgRed = document.querySelector('.header-red-section');
             if (bgRed) {
-                bgRed.style.display = (hash === '#login' || isErrorPage) ? 'none' : 'block';
+                // Background merah hanya muncul di dashboard (isFullPage = false)
+                bgRed.style.display = isFullPage ? 'none' : 'block';
             }
 
-            // Jalankan fungsi inisialisasi jika elemennya sudah muncul di DOM
+            // --- 5. RE-INITIALIZATION (PWA & UI) ---
             if (window.lucide) lucide.createIcons();
             
-            if (!isErrorPage && this.user) {
-                // Beri jeda sedikit agar DOM benar-benar siap
+            // Tampilkan kembali konten
+            root.style.opacity = '1';
+
+            if (!isFullPage && this.user) {
+                // Gunakan setTimeout agar DOM benar-benar siap sebelum diisi data
                 setTimeout(async () => {
-                    this.initPageData();
-                    if (hash === '#dashboard') await this.syncData();
-                    if (hash === '#admin' && typeof Admin !== 'undefined') Admin.init();
-                    this.startClock();
+                    this.initPageData(); // Isi Nama & Role
+                    
+                    if (hash === '#dashboard') {
+                        await this.syncData(); // Tarik status kehadiran & GPS
+                    }
+                    
+                    if (hash === '#admin' && typeof Admin !== 'undefined') {
+                        Admin.init(); // Load tabel data pegawai
+                    }
+                    
+                    this.startClock(); // Jalankan timer detik
                 }, 50);
             }
         } catch (e) {
             console.error("Router Error:", e);
+            root.style.opacity = '1';
             root.innerHTML = `
-                <div class="p-10 text-center">
-                    <h1 class="text-xl font-bold text-red-600">404 / Error</h1>
-                    <p class="text-gray-500">${e.message}</p>
-                    <a href="#login" class="text-indigo-600 underline">Kembali ke Login</a>
+                <div class="min-h-screen flex flex-col items-center justify-center p-10 text-center">
+                    <div class="bg-red-100 p-4 rounded-2xl mb-4">
+                        <i data-lucide="alert-circle" class="w-12 h-12 text-red-600"></i>
+                    </div>
+                    <h1 class="text-2xl font-black text-gray-800 uppercase italic">Oops!</h1>
+                    <p class="text-gray-500 text-sm font-bold uppercase tracking-widest mt-2">${e.message}</p>
+                    <button onclick="window.location.hash='#login'" class="mt-8 bg-red-600 text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">Kembali</button>
                 </div>
             `;
+            if (window.lucide) lucide.createIcons();
         }
     },
   
