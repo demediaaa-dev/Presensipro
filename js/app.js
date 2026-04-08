@@ -221,7 +221,10 @@ const App = {
                 this.attendanceStatus = res.status;
                 this.hasFaceData = res.hasFaceData;
                 this.officeLocation = res.location;
-                this.checkLocation();
+                this.lastTimeIn = res.timeIn;
+                this.lastTimeOut = res.timeOut;
+                
+                this.checkLocation();
                 this.updateDashboardUI();
 
                 const elIn = document.getElementById('time-in');
