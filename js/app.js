@@ -27,37 +27,75 @@ const App = {
         const hash = window.location.hash || '#login';
         const root = document.getElementById('app-content');
         if (!root) return;
-    
+
+        // 1. Ambil data session terbaru
+        const session = JSON.parse(localStorage.getItem('sipanda_session'));
+        this.user = session;
+
         let pageFile = 'pages/login.html';
-        if (hash === '#dashboard') pageFile = 'pages/dashboard-user.html';
-        if (hash === '#history') pageFile = 'pages/history.html';
-        if (hash === '#admin') pageFile = 'pages/dashboard-admin.html';
-    
+        let isError = false;
+
+        // 2. VALIDASI AKSES
+        if (hash === '#dashboard') {
+            if (!this.user) { window.location.hash = '#login'; return; }
+            pageFile = 'pages/dashboard-user.html';
+        } 
+        
+        else if (hash === '#admin') {
+            // Hanya role 'admin' yang boleh masuk
+            if (!this.user) { 
+                window.location.hash = '#login'; return; 
+            } else if (this.user.Role.toLowerCase() !== 'admin') {
+                isError = true;
+                pageFile = 'pages/error.html';
+            } else {
+                pageFile = 'pages/dashboard-admin.html';
+            }
+        }
+
+        else if (hash === '#history') {
+            if (!this.user) { window.location.hash = '#login'; return; }
+            pageFile = 'pages/history.html';
+        }
+
+        else if (hash === '#login') {
+            // Jika sudah login tapi coba buka halaman login, lempar ke dashboard
+            if (this.user) {
+                window.location.hash = (this.user.Role.toLowerCase() === 'admin') ? '#admin' : '#dashboard';
+                return;
+            }
+            pageFile = 'pages/login.html';
+        }
+        
+        else {
+            // Route tidak dikenal
+            isError = true;
+            pageFile = 'pages/error.html';
+        }
+
+        // 3. FETCH HALAMAN
         try {
             const res = await fetch(pageFile);
-            if (!res.ok) throw new Error("Gagal mengambil file");
-            
             const html = await res.text();
             root.innerHTML = html;
-    
-            if (hash === '#admin') {
+
+            // Inisialisasi library/data setelah HTML masuk
+            lucide.createIcons();
+            
+            if (hash === '#admin' && !isError) {
                 Admin.init(); 
             }
-    
-            if (hash !== '#login') {
-                // Jalankan initPageData dulu untuk mengisi Nama/Role
-                this.initPageData(); 
-                // Baru tarik data terbaru dari server
-                await this.syncData(); 
+
+            if (this.user && !isError && hash !== '#login') {
+                this.initPageData();
+                await this.syncData();
+                this.startClock();
             }
-            
-            lucide.createIcons();
-            this.startClock();
-        } catch (e) { 
+        } catch (e) {
             console.error("Router Error:", e);
+            root.innerHTML = `<div class="p-10 text-center">Gagal memuat halaman.</div>`;
         }
     },
-
 
     showToast(message, type = 'info') {
         const container = document.getElementById('toast-container');
