@@ -1,100 +1,39 @@
 <style>
-    :root { 
-        --red-panda: #cc2b2b; 
-        --red-soft: #fdf2f2;
-        --bg-light: #f9fafb; 
-    }
+    :root { --red-panda: #cc2b2b; --red-soft: #fdf2f2; --bg-light: #f9fafb; }
     
     .admin-wrapper { display: flex; height: 100vh; background: var(--bg-light); font-family: 'Plus Jakarta Sans', sans-serif; overflow: hidden; }
     
-    /* LOADING OVERLAY UNIK */
-    #admin-loader {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: white; z-index: 9999; display: flex; flex-direction: column;
-        align-items: center; justify-content: center; transition: 0.5s ease;
-    }
-    .panda-pulse {
-        width: 80px; height: 80px; background: var(--red-panda); border-radius: 24px;
-        display: flex; align-items: center; justify-content: center;
-        animation: pulse-red 1.5s infinite ease-in-out; color: white;
-    }
-    @keyframes pulse-red {
-        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(204, 43, 43, 0.7); }
-        70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(204, 43, 43, 0); }
-        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(204, 43, 43, 0); }
-    }
-    .loading-bar {
-        width: 150px; height: 4px; background: var(--red-soft); border-radius: 10px;
-        margin-top: 20px; overflow: hidden; position: relative;
-    }
-    .loading-bar::after {
-        content: ""; position: absolute; left: -100%; width: 100%; height: 100%;
-        background: var(--red-panda); animation: load-slide 1.5s infinite linear;
-    }
-    @keyframes load-slide { 0% { left: -100%; } 100% { left: 100%; } }
-
-    /* Style untuk Skeleton yang halus */
-    .skeleton-line {
-        height: 12px;
-        background: linear-gradient(90deg, #f0f0f0 25%, #f8f8f8 50%, #f0f0f0 75%);
-        background-size: 200% 100%;
-        animation: skeleton-loading 1.5s infinite;
-        border-radius: 6px;
-    }
-    @keyframes skeleton-loading {
-        0% { background-position: 200% 0; }
-        100% { background-position: -200% 0; }
-    }
-    
-    /* Sidebar Styling */
-    .sidebar { 
-        width: 280px; background: white; border-right: 1px solid #f0f0f0; 
-        display: flex; flex-direction: column; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        z-index: 50;
-    }
-    .sidebar.collapsed { width: 0; transform: translateX(-280px); overflow: hidden; border: none; }
+    /* Sidebar */
+    .sidebar { width: 280px; background: white; border-right: 1px solid #f0f0f0; display: flex; flex-direction: column; transition: 0.4s ease; z-index: 50; }
+    .sidebar.collapsed { width: 0; transform: translateX(-280px); }
     
     .nav-item { 
         display: flex; align-items: center; gap: 14px; padding: 14px 20px; 
         border-radius: 16px; color: #888; font-weight: 700; text-decoration: none; 
-        margin: 4px 15px; transition: all 0.2s; font-size: 13px; cursor: pointer;
+        margin: 4px 15px; transition: 0.2s; font-size: 13px; cursor: pointer;
     }
-    .nav-item:hover { background: var(--red-soft); color: var(--red-panda); }
-    .nav-item.active { background: var(--red-soft); color: var(--red-panda); box-shadow: inset 4px 0 0 var(--red-panda); }
-
-    /* Pagination Styling */
-    .pagination-container {
-        padding: 15px 20px; border-top: 1px solid #f5f5f5;
-        display: flex; justify-content: space-between; align-items: center; background: white;
-    }
-    .page-btn {
-        padding: 8px 14px; border-radius: 10px; border: 1px solid #eee;
-        background: white; color: #666; font-size: 11px; font-weight: 800;
-        cursor: pointer; transition: 0.2s;
-    }
-    .page-btn:hover:not(:disabled) { background: var(--red-soft); color: var(--red-panda); border-color: var(--red-panda); }
-    .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .page-info { font-size: 11px; font-weight: 700; color: #999; }
+    .nav-item:hover, .nav-item.active { background: var(--red-soft); color: var(--red-panda); }
+    .nav-item.active { box-shadow: inset 4px 0 0 var(--red-panda); }
 
     /* Main Area */
-    .main-content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .main-content { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
     
-    .bottom-nav { 
-        display: none; position: fixed; bottom: 0; left: 0; right: 0; 
-        background: white; padding: 10px 5px; border-top: 1px solid #eee;
-        justify-content: space-around; align-items: center; z-index: 200;
-    }
-    .mobile-item { 
-        color: #bbb; display: flex; flex-direction: column; align-items: center; 
-        gap: 4px; font-size: 9px; font-weight: 800; text-decoration: none;
-    }
+    /* Pagination & Skeleton */
+    .pagination-container { padding: 15px 20px; border-top: 1px solid #f5f5f5; display: flex; justify-content: space-between; align-items: center; background: white; }
+    .page-btn { padding: 8px 14px; border-radius: 10px; border: 1px solid #eee; background: white; font-size: 11px; font-weight: 800; cursor: pointer; }
+    .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .skeleton-line { height: 12px; background: linear-gradient(90deg, #f0f0f0 25%, #f8f8f8 50%, #f0f0f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; border-radius: 6px; }
+    @keyframes skeleton-loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    /* Mobile Nav */
+    .bottom-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 10px 5px; border-top: 1px solid #eee; justify-content: space-around; z-index: 100; }
+    .mobile-item { color: #bbb; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 9px; font-weight: 800; text-decoration: none; }
     .mobile-item.active { color: var(--red-panda); }
-    .mobile-item i { width: 22px; height: 22px; }
 
     @media (max-width: 768px) {
         .sidebar { display: none; }
         .bottom-nav { display: flex; }
-        .content-scroll { padding-bottom: 80px !important; }
     }
 </style>
 
@@ -105,7 +44,7 @@
                 <div style="background: var(--red-panda); color: white; width: 35px; height: 35px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
                     <i data-lucide="shield-check" style="width: 18px;"></i>
                 </div>
-                <div style="line-height: 1;">
+                <div>
                     <div style="font-weight: 900; font-size: 12px; color: #333;">SIPANDA</div>
                     <div style="font-size: 8px; color: var(--red-panda); font-weight: 800; letter-spacing: 1px;">ADMIN PANEL</div>
                 </div>
@@ -113,14 +52,14 @@
         </div>
         
         <nav class="sidebar-nav">
-            <div onclick="Admin.switchTab('users', this)" class="nav-item active" data-tab="users"><i data-lucide="users"></i> <span>Pegawai</span></div>
-            <div onclick="Admin.switchTab('shifts', this)" class="nav-item" data-tab="shifts"><i data-lucide="map-pin"></i> <span>Titik Lokasi</span></div>
-            <div onclick="Admin.switchTab('attendance', this)" class="nav-item" data-tab="attendance"><i data-lucide="calendar-check"></i> <span>Presensi</span></div>
-            <div onclick="Admin.switchTab('outstation', this)" class="nav-item" data-tab="outstation"><i data-lucide="map"></i> <span>Dinas Luar</span></div>
+            <div onclick="Admin.switchTab('users')" class="nav-item active" data-tab="users"><i data-lucide="users"></i> <span>Pegawai</span></div>
+            <div onclick="Admin.switchTab('shifts')" class="nav-item" data-tab="shifts"><i data-lucide="map-pin"></i> <span>Lokasi</span></div>
+            <div onclick="Admin.switchTab('attendance')" class="nav-item" data-tab="attendance"><i data-lucide="calendar-check"></i> <span>Presensi</span></div>
+            <div onclick="Admin.switchTab('outstation')" class="nav-item" data-tab="outstation"><i data-lucide="map"></i> <span>Dinas Luar</span></div>
         </nav>
 
         <div style="margin-top: auto; padding: 20px; border-top: 1px solid #f9f9f9;">
-            <button onclick="App.openLogoutModal()" style="width: 100%; padding: 14px; border: none; background: #fff5f5; color: #cc2b2b; border-radius: 14px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.2s;">
+            <button onclick="App.openLogoutModal()" style="width: 100%; padding: 14px; border: none; background: #fff5f5; color: #cc2b2b; border-radius: 14px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;">
                 <i data-lucide="log-out" style="width: 18px;"></i>
                 <span>Keluar Sistem</span>
             </button>
@@ -135,47 +74,26 @@
                 </button>
                 <h1 id="admin-page-title" style="margin: 0; font-size: 18px; font-weight: 900; color: #1a1a1a;">Data Pegawai</h1>
             </div>
-            
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <div style="text-align: right; line-height: 1;">
-                    <div class="display-name" style="font-size: 11px; font-weight: 900;">Admin Mode</div>
-                    <div style="font-size: 9px; color: #aaa; font-weight: 700;">SIPANDA-SECURE</div>
-                </div>
-                <div style="width: 35px; height: 35px; background: var(--red-panda); border-radius: 10px; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;">A</div>
-            </div>
+            <div style="width: 35px; height: 35px; background: var(--red-panda); border-radius: 10px; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;">A</div>
         </header>
 
         <section class="content-scroll" style="flex:1; overflow-y:auto; padding: 25px;">
-            <div style="background:white; border-radius:25px; box-shadow:0 10px 30px rgba(0,0,0,0.02); border:1px solid #f0f0f0; overflow:hidden;">
+            <div style="background:white; border-radius:25px; box-shadow:0 10px 30px rgba(0,0,0,0.02); border:1px solid #f0f0f0; overflow:hidden; display: flex; flex-direction: column;">
                 <div style="padding: 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f5f5f5;">
-                    <input type="text" onkeyup="Admin.searchData(this.value)" placeholder="Cari..." style="padding: 10px 15px; border-radius: 12px; border: 1px solid #eee; background: #f9fafb; width: 200px; outline: none; font-size: 12px; font-weight: 600;">
+                    <input type="text" onkeyup="Admin.search(this.value)" placeholder="Cari..." style="padding: 10px 15px; border-radius: 12px; border: 1px solid #eee; background: #f9fafb; width: 200px; outline: none; font-size: 12px; font-weight: 600;">
                     <div style="display:flex; gap:10px;">
-                        <button onclick="Admin.refreshData()" style="background: #f0f0f0; border: none; padding: 10px; border-radius: 12px; cursor: pointer; color: #666;">
-                            <i data-lucide="refresh-cw" style="width:16px;"></i>
-                        </button>
-                        
-                        <button onclick="Admin.openCreateModal()" style="background: var(--red-panda); color: white; border: none; padding: 10px 18px; border-radius: 12px; font-size: 11px; font-weight: 800; cursor: pointer;">
-                            + DATA BARU
-                        </button>
+                        <button onclick="Admin.refreshData()" style="background: #f0f0f0; border: none; padding: 10px; border-radius: 12px; cursor: pointer;"><i data-lucide="refresh-cw" style="width:16px;"></i></button>
+                        <button onclick="Admin.openCreateModal()" style="background: var(--red-panda); color: white; border: none; padding: 10px 18px; border-radius: 12px; font-size: 11px; font-weight: 800; cursor: pointer;">+ DATA BARU</button>
                     </div>
                 </div>
-                
-                <div style="overflow-x:auto;">
+                <div style="overflow-x:auto; flex: 1;">
                     <table style="width:100%; border-collapse:collapse; font-size: 12px;">
                         <thead id="admin-table-head" style="background:#fafafa; border-bottom:1px solid #f0f0f0;"></thead>
-                        <tbody id="admin-table-body">
-                            <tr class="skeleton-row">
-                                <td style="padding:15px;"><div class="skeleton-line"></div></td>
-                                <td style="padding:15px;"><div class="skeleton-line"></div></td>
-                                <td style="padding:15px;"><div class="skeleton-line"></div></td>
-                                <td style="padding:15px;"><div class="skeleton-line"></div></td>
-                            </tr>
-                        </tbody>
+                        <tbody id="admin-table-body"></tbody>
                     </table>
                 </div>
-
                 <div class="pagination-container">
-                    <div class="page-info" id="admin-page-info">Menampilkan 0 data</div>
+                    <div class="page-info" id="admin-page-info">Halaman 1</div>
                     <div style="display:flex; gap:8px;">
                         <button id="admin-prev-btn" onclick="Admin.prevPage()" class="page-btn"><i data-lucide="chevron-left" style="width:14px;"></i></button>
                         <button id="admin-next-btn" onclick="Admin.nextPage()" class="page-btn"><i data-lucide="chevron-right" style="width:14px;"></i></button>
@@ -186,20 +104,10 @@
     </main>
 
     <nav class="bottom-nav">
-        <a href="javascript:void(0)" onclick="Admin.switchTab('users', this)" class="mobile-item active" data-tab="users">
-            <i data-lucide="users"></i><span>User</span>
-        </a>
-        <a href="javascript:void(0)" onclick="Admin.switchTab('shifts', this)" class="mobile-item" data-tab="shifts">
-            <i data-lucide="map-pin"></i><span>Lokasi</span>
-        </a>
-        <a href="javascript:void(0)" onclick="Admin.switchTab('attendance', this)" class="mobile-item" data-tab="attendance">
-            <i data-lucide="calendar-check"></i><span>Presensi</span>
-        </a>
-        <a href="javascript:void(0)" onclick="Admin.switchTab('outstation', this)" class="mobile-item" data-tab="outstation">
-            <i data-lucide="map"></i><span>Dinas</span>
-        </a>
-        <a href="javascript:void(0)" onclick="App.openLogoutModal()" class="mobile-item">
-            <i data-lucide="log-out"></i><span>Keluar</span>
-        </a>
+        <a href="javascript:void(0)" onclick="Admin.switchTab('users')" class="mobile-item active" data-tab="users"><i data-lucide="users"></i><span>User</span></a>
+        <a href="javascript:void(0)" onclick="Admin.switchTab('shifts')" class="mobile-item" data-tab="shifts"><i data-lucide="map-pin"></i><span>Lokasi</span></a>
+        <a href="javascript:void(0)" onclick="Admin.switchTab('attendance')" class="mobile-item" data-tab="attendance"><i data-lucide="calendar-check"></i><span>Presensi</span></a>
+        <a href="javascript:void(0)" onclick="Admin.switchTab('outstation')" class="mobile-item" data-tab="outstation"><i data-lucide="map"></i><span>Dinas</span></a>
+        <a href="javascript:void(0)" onclick="App.openLogoutModal()" class="mobile-item"><i data-lucide="log-out"></i><span>Keluar</span></a>
     </nav>
 </div>
