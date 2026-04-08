@@ -480,6 +480,11 @@ const Admin = {
         const res = this.cache[this.currentTab];
         const body = document.getElementById('admin-table-body');
         const head = document.getElementById('admin-table-head');
+        const userData = JSON.parse(localStorage.getItem('user_session'));
+        
+        if (userData) {
+            document.querySelector('.user-name').innerText = userData.nama;
+        }
         
         // Render Header
         head.innerHTML = `<tr>${res.headers.map(h => `<th style="padding:15px; text-align:left; color:#999; font-size:10px;">${h.toUpperCase()}</th>`).join('')}<th style="text-align:center;">AKSI</th></tr>`;
