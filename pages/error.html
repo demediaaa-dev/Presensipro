@@ -21,17 +21,3 @@
         Kembali ke Beranda
     </button>
 </div>
-
-<script>
-    // Fungsi khusus untuk mengarahkan user sesuai rolenya
-    function handleErrorRedirect() {
-        const session = JSON.parse(localStorage.getItem('sipanda_session'));
-        if (!session) {
-            window.location.hash = '#login';
-        } else {
-            window.location.hash = (session.Role.toLowerCase() === 'admin') ? '#admin' : '#dashboard';
-        }
-    }
-    // Refresh icon karena ini dimuat dinamis
-    lucide.createIcons();
-</script>
