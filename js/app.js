@@ -100,6 +100,12 @@ const App = {
             pageFile = 'pages/error.html';
         }
 
+        else if (hash === '#download') {
+            pageFile = 'pages/download.html';
+            isError = true; // Kita set true agar background merah index.html hilang (opsional)
+        }
+      
+
         // --- PROSES FETCH & RENDER ---
         try {
             const res = await fetch(pageFile);
