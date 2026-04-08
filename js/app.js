@@ -480,40 +480,73 @@ const Admin = {
         const res = this.cache[this.currentTab];
         const body = document.getElementById('admin-table-body');
         const head = document.getElementById('admin-table-head');
-        const userData = JSON.parse(localStorage.getItem('user_session'));
         
-        if (userData) {
-            document.querySelector('.user-name').innerText = userData.nama;
-        }
-        
-        // Render Header
-        head.innerHTML = `<tr>${res.headers.map(h => `<th style="padding:15px; text-align:left; color:#999; font-size:10px;">${h.toUpperCase()}</th>`).join('')}<th style="text-align:center;">AKSI</th></tr>`;
-
-        // Render Rows (Pagination)
+        // 1. Tentukan Kolom Mana Saja yang Tampil & Judul Headernya
+        // Angka 0, 1, 2 dsb adalah indeks kolom di Google Sheets (kolom A=0, B=1, dst)
+        const columnConfig = {
+            'users': [
+                { index: 1, label: 'NAMA PEGAWAI' },
+                { index: 2, label: 'JABATAN' },
+                { index: 5, label: 'STATUS' }
+            ],
+            'shifts': [
+                { index: 0, label: 'NAMA LOKASI' },
+                { index: 3, label: 'RADIUS (M)' }
+            ],
+            'attendance': [
+                { index: 1, label: 'NAMA' },
+                { index: 2, label: 'TANGGAL' },
+                { index: 3, label: 'JAM MASUK' },
+                { index: 6, label: 'KETERANGAN' }
+            ],
+            'outstation': [
+                { index: 1, label: 'NAMA' },
+                { index: 2, label: 'TUJUAN' },
+                { index: 4, label: 'STATUS' }
+            ]
+        };
+    
+        const activeCols = columnConfig[this.currentTab] || [];
+    
+        // 2. Render Header Manual
+        head.innerHTML = `
+            <tr>
+                ${activeCols.map(col => `<th style="padding:15px; text-align:left; color:#999; font-size:10px;">${col.label}</th>`).join('')}
+                <th style="text-align:center; color:#999; font-size:10px;">AKSI</th>
+            </tr>
+        `;
+    
+        // 3. Render Body dengan Filter Kolom & Tombol Aksi Baru
         const start = (this.currentPage - 1) * this.rowsPerPage;
         const pagedData = res.data.slice(start, start + this.rowsPerPage);
-
-        body.innerHTML = pagedData.map(row => `
-            <tr style="border-bottom:1px solid #f8f8f8;">
-                ${row.map(cell => `<td style="padding:15px; font-weight:600; color:#444;">${cell || '-'}</td>`).join('')}
+    
+        body.innerHTML = pagedData.map((row, rowIndex) => `
+            <tr style="border-bottom:1px solid #f8f8f8; transition: 0.2s;">
+                ${activeCols.map(col => `
+                    <td style="padding:15px; font-weight:600; color:#444;">${row[col.index] || '-'}</td>
+                `).join('')}
                 <td style="padding:15px; text-align:center;">
-                    <button class="btn-action" style="color:#0066ff; border:none; background:none; cursor:pointer;"><i data-lucide="edit-2" style="width:14px;"></i></button>
+                    <div style="display:flex; gap:6px; justify-content:center;">
+                        <button onclick="Admin.editEntry('${row[0]}')" title="Edit" style="border:none; background:#f0f7ff; color:#0066ff; width:28px; height:28px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                            <i data-lucide="edit-2" style="width:14px;"></i>
+                        </button>
+                        <button onclick="Admin.resetDevice('${row[0]}')" title="Reset Perangkat" style="border:none; background:#fff7e6; color:#ffa940; width:28px; height:28px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                            <i data-lucide="refresh-cw" style="width:14px;"></i>
+                        </button>
+                        <button onclick="Admin.deleteEntry('${row[0]}')" title="Hapus" style="border:none; background:#fff0f0; color:#cc2b2b; width:28px; height:28px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                            <i data-lucide="trash" style="width:14px;"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
         `).join('');
-
-        // Update Pagination Footer
+    
+        // Update Pagination Info
         document.getElementById('admin-page-info').innerText = `Halaman ${this.currentPage} / ${Math.ceil(res.data.length / this.rowsPerPage) || 1}`;
         document.getElementById('admin-prev-btn').disabled = this.currentPage === 1;
         document.getElementById('admin-next-btn').disabled = start + this.rowsPerPage >= res.data.length;
-
-        // LANGSUNG panggil Lucide setiap kali render selesai
+    
         if (window.lucide) lucide.createIcons();
-    },
-
-    nextPage() { this.currentPage++; this.renderPage(); },
-    prevPage() { this.currentPage--; this.renderPage(); },
-    refreshData() { this.cache = {}; this.loadTableData(); }
-};
+    };
 
 document.addEventListener('DOMContentLoaded', () => App.init());
