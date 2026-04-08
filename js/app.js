@@ -214,16 +214,45 @@ const App = {
     async syncData() {
         if (!this.user || !this.user.id) return;
         try {
+            console.log("Memulai Sync Data untuk user:", this.user.id);
             const res = await API.call({ action: "get_status", user_id: this.user.id });
+            console.log("Data dari server:", res); // LIHAT DI CONSOLE APAKAH timeIn ADA ISINYA
+
             if (res.success) {
-                // Simpan data ke memori App
+                // 1. Simpan ke State
                 this.attendanceStatus = res.status;
                 this.hasFaceData = res.hasFaceData;
                 this.officeLocation = res.location;
                 this.lastTimeIn = res.timeIn || "-- : --";
                 this.lastTimeOut = res.timeOut || "-- : --";
                 
+                // 2. Cek Lokasi
                 this.checkLocation();
+
+                // 3. Update UI Manual (Langsung tembak ke ID)
+                const formatTime = (timeStr) => {
+                    if (!timeStr || timeStr === "" || timeStr === "-- : --") return "-- : --";
+                    if (typeof timeStr === 'string' && timeStr.includes('T')) {
+                        const d = new Date(timeStr);
+                        return d.getHours().toString().padStart(2, '0') + ":" + 
+                               d.getMinutes().toString().padStart(2, '0');
+                    }
+                    return timeStr;
+                };
+
+                const elIn = document.getElementById('time-in');
+                const elOut = document.getElementById('time-out');
+
+                if (elIn) {
+                    elIn.innerText = formatTime(this.lastTimeIn);
+                    console.log("Jam Masuk berhasil diisi:", elIn.innerText);
+                } else {
+                    console.error("Elemen #time-in TIDAK DITEMUKAN di DOM!");
+                }
+
+                if (elOut) elOut.innerText = formatTime(this.lastTimeOut);
+
+                // 4. Update elemen dashboard lainnya
                 this.updateDashboardUI();
             }
         } catch (e) { 
