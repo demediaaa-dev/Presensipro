@@ -1,6 +1,6 @@
 const API = {
     // Ganti dengan URL Web App yang Anda dapatkan saat Deploy di Google Apps Script
-    url: "https://script.google.com/macros/s/AKfycbwelVQVDDIr5tTZ4_vbMfNie6inB4u2cyDROysZD_dktnWV5KtqOvVXKC92_aRBfNBIRg/exec",
+    url: "https://script.google.com/macros/s/AKfycbzcgvwTbyMgnx7toXuMoxUPF6zBZ3k_Fs7yzpdedpm5XQnyPaURAF0WSkroCFcOV7IfUQ/exec",
 
     async call(data) {
         try {
