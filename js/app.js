@@ -379,7 +379,32 @@ const Admin = {
         const head = document.getElementById('admin-table-head');
         if (!res || !body || !head) return;
 
-        // 2. MAPPING KOLOM (Sesuai kode awalmu agar tidak tertukar)
+        // --- FUNGSI HELPER UNTUK FORMATTING ---
+        const formatValue = (val) => {
+            if (!val || val === "") return "-";
+            const valStr = String(val);
+
+            // 1. Jika formatnya jam/tanggal ISO (ada huruf T atau Z)
+            if (valStr.includes('T') || valStr.includes('Z')) {
+                const d = new Date(valStr);
+                if (isNaN(d.getTime())) return valStr; // Jika bukan tanggal valid, kembalikan aslinya
+
+                // Jika tahunnya 1899, berarti ini hanya data JAM
+                if (d.getFullYear() <= 1900) {
+                    return d.getHours().toString().padStart(2, '0') + ":" + 
+                           d.getMinutes().toString().padStart(2, '0');
+                }
+                
+                // Jika tahunnya normal, berarti ini TANGGAL
+                return d.toLocaleDateString('id-ID', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                });
+            }
+            return valStr;
+        };
+
         const columnConfig = {
             'users': [
                 { index: 0, label: 'NIP' },
@@ -393,7 +418,7 @@ const Admin = {
                 { index: 3, label: 'JAM PULANG' }
             ],
             'attendance': [
-                { index: 1, label: 'NAMA' }, // Index ini akan kita manipulasi di bawah
+                { index: 1, label: 'NAMA' },
                 { index: 2, label: 'TANGGAL' },
                 { index: 3, label: 'JAM MASUK' },
                 { index: 4, label: 'JAM PULANG' },
@@ -408,15 +433,14 @@ const Admin = {
 
         const activeCols = columnConfig[this.currentTab] || [];
 
-        // 3. LOGIKA MAPPING NAMA (Khusus Attendance agar tampil Nama, bukan ID)
+        // Mapping Nama Pegawai (Attendance)
         let displayData = [...res.data];
         if (this.currentTab === 'attendance' && this.cache['users']) {
             const userList = this.cache['users'].data;
             displayData = res.data.map(row => {
-                const userId = row[1]; // User_ID di kolom B
+                const userId = row[1];
                 const userMatch = userList.find(u => u[0] == userId);
                 const newRow = [...row];
-                // Ganti isi kolom index 1 (ID) dengan Nama dari tabel users
                 newRow[1] = userMatch ? userMatch[1] : `ID: ${userId}`; 
                 return newRow;
             });
@@ -430,14 +454,16 @@ const Admin = {
             </tr>
         `;
 
-        // Render Body
+        // Render Body dengan formatValue()
         const start = (this.currentPage - 1) * this.rowsPerPage;
         const pagedData = displayData.slice(start, start + this.rowsPerPage);
 
         body.innerHTML = pagedData.map((row) => `
             <tr style="border-bottom:1px solid #f8f8f8;">
                 ${activeCols.map(col => `
-                    <td style="padding:15px; font-weight:600; color:#444;">${row[col.index] || '-'}</td>
+                    <td style="padding:15px; font-weight:600; color:#444;">
+                        ${formatValue(row[col.index])}
+                    </td>
                 `).join('')}
                 <td style="padding:15px; text-align:center;">
                     <div style="display:flex; gap:6px; justify-content:center;">
@@ -455,7 +481,6 @@ const Admin = {
             </tr>
         `).join('');
 
-        // Update Pagination
         const maxPage = Math.ceil(res.data.length / this.rowsPerPage) || 1;
         document.getElementById('admin-page-info').innerText = `Halaman ${this.currentPage} / ${maxPage}`;
         document.getElementById('admin-prev-btn').disabled = this.currentPage === 1;
