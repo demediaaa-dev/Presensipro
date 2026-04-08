@@ -326,22 +326,26 @@ const Admin = {
     cache: {},
     currentPage: 1,
     rowsPerPage: 10,
-    currentRegID: null,
 
     async init() {
-        await this.loadTableData();
+        // Load data users sebagai master data (untuk mapping nama di attendance)
+        const resUser = await API.call({ action: "admin_get_data", sheet: 'users' });
+        if (resUser.success) this.cache['users'] = resUser;
+        
+        this.loadTableData();
     },
 
     async loadTableData() {
         const body = document.getElementById('admin-table-body');
         if (!body) return;
 
-        if (this.cache[this.currentTab]) {
+        // 1. KEMBALIKAN SKELETON (UX agar tidak kosong melompong)
+        if (!this.cache[this.currentTab]) {
+            body.innerHTML = '<tr><td colspan="10" style="padding:20px;"><div class="skeleton-line" style="height:20px; background:#f0f0f0; border-radius:4px; animation: pulse 1.5s infinite;"></div></td></tr>'.repeat(5);
+        } else {
             this.renderPage();
             return;
         }
-
-        body.innerHTML = '<tr><td colspan="6" class="p-5 text-center text-gray-400">Memuat data...</td></tr>';
 
         try {
             const res = await API.call({ action: "admin_get_data", sheet: this.currentTab });
@@ -350,19 +354,21 @@ const Admin = {
                 this.renderPage();
             }
         } catch (e) {
-            body.innerHTML = '<tr><td colspan="6" class="p-5 text-center text-red-500">Gagal memuat.</td></tr>';
+            body.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px;">Gagal memuat data.</td></tr>';
         }
     },
 
     switchTab(tab) {
         this.currentTab = tab;
         this.currentPage = 1;
+
+        // Update UI Tab Aktif
         document.querySelectorAll('.nav-item, .mobile-item').forEach(el => el.classList.remove('active'));
         document.querySelectorAll(`[data-tab="${tab}"]`).forEach(el => el.classList.add('active'));
         
+        const titleMap = { 'users': 'Data Pegawai', 'shifts': 'Titik Lokasi', 'attendance': 'Rekap Presensi', 'outstation': 'Dinas Luar' };
         const titleEl = document.getElementById('admin-page-title');
-        const titles = { users: 'Pegawai', shifts: 'Lokasi', attendance: 'Presensi', outstation: 'Dinas Luar' };
-        if (titleEl) titleEl.innerText = titles[tab] || 'Admin';
+        if (titleEl) titleEl.innerText = titleMap[tab];
 
         this.loadTableData();
     },
@@ -373,48 +379,101 @@ const Admin = {
         const head = document.getElementById('admin-table-head');
         if (!res || !body || !head) return;
 
-        const config = {
-            'users': [{i:0, l:'NIP'}, {i:1, l:'NAMA'}, {i:6, l:'SHIFT'}],
-            'shifts': [{i:0, l:'KODE'}, {i:1, l:'NAMA'}, {i:2, l:'MASUK'}, {i:3, l:'PULANG'}],
-            'attendance': [{i:1, l:'NAMA'}, {i:2, l:'TGL'}, {i:3, l:'MASUK'}, {i:4, l:'PULANG'}],
-            'outstation': [{i:1, l:'NAMA'}, {i:2, l:'TUJUAN'}, {i:4, l:'STATUS'}]
+        // 2. MAPPING KOLOM (Sesuai kode awalmu agar tidak tertukar)
+        const columnConfig = {
+            'users': [
+                { index: 0, label: 'NIP' },
+                { index: 1, label: 'NAMA' },
+                { index: 6, label: 'KODE SHIFT' }
+            ],
+            'shifts': [
+                { index: 0, label: 'KODE SHIFT' },
+                { index: 1, label: 'NAMA SHIFT' },
+                { index: 2, label: 'JAM MASUK' },
+                { index: 3, label: 'JAM PULANG' }
+            ],
+            'attendance': [
+                { index: 1, label: 'NAMA' }, // Index ini akan kita manipulasi di bawah
+                { index: 2, label: 'TANGGAL' },
+                { index: 3, label: 'JAM MASUK' },
+                { index: 4, label: 'JAM PULANG' },
+                { index: 9, label: 'KETERANGAN' }
+            ],
+            'outstation': [
+                { index: 1, label: 'NAMA' },
+                { index: 2, label: 'TUJUAN' },
+                { index: 4, label: 'STATUS' }
+            ]
         };
 
-        const cols = config[this.currentTab] || [];
-        head.innerHTML = `<tr>${cols.map(c => `<th class="p-3 text-left text-[10px] text-gray-400 uppercase">${c.l}</th>`).join('')}<th class="p-3 text-center text-[10px] text-gray-400">AKSI</th></tr>`;
+        const activeCols = columnConfig[this.currentTab] || [];
 
+        // 3. LOGIKA MAPPING NAMA (Khusus Attendance agar tampil Nama, bukan ID)
+        let displayData = [...res.data];
+        if (this.currentTab === 'attendance' && this.cache['users']) {
+            const userList = this.cache['users'].data;
+            displayData = res.data.map(row => {
+                const userId = row[1]; // User_ID di kolom B
+                const userMatch = userList.find(u => u[0] == userId);
+                const newRow = [...row];
+                // Ganti isi kolom index 1 (ID) dengan Nama dari tabel users
+                newRow[1] = userMatch ? userMatch[1] : `ID: ${userId}`; 
+                return newRow;
+            });
+        }
+
+        // Render Header
+        head.innerHTML = `
+            <tr>
+                ${activeCols.map(col => `<th style="padding:15px; text-align:left; color:#999; font-size:10px;">${col.label}</th>`).join('')}
+                <th style="text-align:center; color:#999; font-size:10px;">AKSI</th>
+            </tr>
+        `;
+
+        // Render Body
         const start = (this.currentPage - 1) * this.rowsPerPage;
-        const data = res.data.slice(start, start + this.rowsPerPage);
+        const pagedData = displayData.slice(start, start + this.rowsPerPage);
 
-        body.innerHTML = data.map(row => `
-            <tr class="border-b border-gray-50">
-                ${cols.map(c => `<td class="p-3 font-semibold text-gray-700">${row[c.i] || '-'}</td>`).join('')}
-                <td class="p-3 flex justify-center gap-2">
-                    <button onclick="Admin.editEntry('${row[0]}')" class="w-7 h-7 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center"><i data-lucide="edit-2" class="w-3"></i></button>
-                    <button onclick="Admin.resetDevice('${row[0]}')" class="w-7 h-7 bg-orange-50 text-orange-600 rounded-lg flex items-center justify-center"><i data-lucide="refresh-cw" class="w-3"></i></button>
+        body.innerHTML = pagedData.map((row) => `
+            <tr style="border-bottom:1px solid #f8f8f8;">
+                ${activeCols.map(col => `
+                    <td style="padding:15px; font-weight:600; color:#444;">${row[col.index] || '-'}</td>
+                `).join('')}
+                <td style="padding:15px; text-align:center;">
+                    <div style="display:flex; gap:6px; justify-content:center;">
+                        <button onclick="Admin.editEntry('${row[0]}')" style="border:none; background:#f0f7ff; color:#0066ff; width:28px; height:28px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                            <i data-lucide="edit-2" style="width:14px;"></i>
+                        </button>
+                        <button onclick="Admin.resetDevice('${row[0]}')" style="border:none; background:#fff7e6; color:#ffa940; width:28px; height:28px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                            <i data-lucide="refresh-cw" style="width:14px;"></i>
+                        </button>
+                        <button onclick="Admin.deleteEntry('${row[0]}')" style="border:none; background:#fff0f0; color:#cc2b2b; width:28px; height:28px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                            <i data-lucide="trash" style="width:14px;"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
         `).join('');
 
+        // Update Pagination
+        const maxPage = Math.ceil(res.data.length / this.rowsPerPage) || 1;
+        document.getElementById('admin-page-info').innerText = `Halaman ${this.currentPage} / ${maxPage}`;
+        document.getElementById('admin-prev-btn').disabled = this.currentPage === 1;
+        document.getElementById('admin-next-btn').disabled = this.currentPage >= maxPage;
+
         if (window.lucide) lucide.createIcons();
-        this.updatePagination(res.data.length);
     },
 
-    updatePagination(total) {
-        const info = document.getElementById('admin-page-info');
-        const prev = document.getElementById('admin-prev-btn');
-        const next = document.getElementById('admin-next-btn');
-        const maxPage = Math.ceil(total / this.rowsPerPage) || 1;
-
-        if (info) info.innerText = `Hal ${this.currentPage} / ${maxPage}`;
-        if (prev) prev.disabled = this.currentPage === 1;
-        if (next) next.disabled = this.currentPage >= maxPage;
-    },
-
+    // Fungsi navigasi page
     changePage(dir) {
         this.currentPage += dir;
         this.renderPage();
-    }
+    },
+
+    // Placeholder untuk aksi (bisa kamu isi sesuai kebutuhan)
+    resetDevice(id) { if(confirm('Reset perangkat?')) console.log('Reset:', id); },
+    editEntry(id) { console.log('Edit:', id); },
+    deleteEntry(id) { if(confirm('Hapus data?')) console.log('Delete:', id); }
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());
