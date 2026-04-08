@@ -475,6 +475,26 @@ const Admin = {
         }
     },
 
+    resetDevice(id) {
+        if(confirm(`Reset ID perangkat untuk pegawai ini? User bisa login di HP baru.`)) {
+            console.log("Meminta reset perangkat untuk ID:", id);
+            // Panggil API.call({ action: 'reset_device', id: id }) di sini
+            alert("Perangkat berhasil direset!");
+        }
+    },
+    
+    editEntry(id) {
+        console.log("Membuka form edit untuk:", id);
+        // Logika buka modal edit
+    },
+    
+    deleteEntry(id) {
+        if(confirm("Yakin ingin menghapus data ini?")) {
+            console.log("Menghapus ID:", id);
+            // Logika hapus data
+        }
+    },
+
     // 3. Render Tabel & Ikon (AKURAT)
     renderPage() {
         const res = this.cache[this.currentTab];
