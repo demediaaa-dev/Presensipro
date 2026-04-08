@@ -1,0 +1,16 @@
+{
+  "short_name": "KEHADIRAN",
+  "name": "Kehadiran - Sistem Presensi",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3022/3022491.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/#dashboard",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#dc2626"
+}
