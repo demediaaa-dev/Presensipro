@@ -21,29 +21,40 @@ const App = {
         this.router();
     },
 
+// BAGIAN ROUTER YANG PERLU DIPERBAIKI
     async router() {
         const hash = window.location.hash || '#login';
         const root = document.getElementById('app-content');
-        
+        if (!root) return; // Guard clause jika element root tidak ada
+    
         let pageFile = 'pages/login.html';
         if (hash === '#dashboard') pageFile = 'pages/dashboard-user.html';
         if (hash === '#history') pageFile = 'pages/history.html';
-        if (hash === '#admin') {
-            pageFile = 'pages/dashboard-admin.html';
-            Admin.init(); // Pastikan Admin.init dipanggil di sini
-        }
+        if (hash === '#admin') pageFile = 'pages/dashboard-admin.html';
     
         try {
             const res = await fetch(pageFile);
-            root.innerHTML = await res.text();
+            if (!res.ok) throw new Error("Gagal mengambil file halaman");
             
+            const html = await res.text();
+            root.innerHTML = html; // 1. Masukkan HTML dulu
+    
+            // 2. Baru jalankan logika setelah elemen masuk ke DOM
+            if (hash === '#admin') {
+                Admin.init(); 
+            }
+    
             if (hash !== '#login') {
                 await this.syncData();
                 this.initPageData();
             }
+            
             lucide.createIcons();
             this.startClock();
-        } catch (e) { console.error("Router Error:", e); }
+        } catch (e) { 
+            console.error("Router Error:", e);
+            root.innerHTML = `<div class="p-10 text-center">Terjadi kesalahan saat memuat halaman.</div>`;
+        }
     },
 
 
