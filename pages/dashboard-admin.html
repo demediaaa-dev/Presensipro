@@ -33,6 +33,19 @@
     }
     @keyframes load-slide { 0% { left: -100%; } 100% { left: 100%; } }
 
+    /* Style untuk Skeleton yang halus */
+    .skeleton-line {
+        height: 12px;
+        background: linear-gradient(90deg, #f0f0f0 25%, #f8f8f8 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: skeleton-loading 1.5s infinite;
+        border-radius: 6px;
+    }
+    @keyframes skeleton-loading {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+    
     /* Sidebar Styling */
     .sidebar { 
         width: 280px; background: white; border-right: 1px solid #f0f0f0; 
@@ -84,14 +97,6 @@
         .content-scroll { padding-bottom: 80px !important; }
     }
 </style>
-
-<div id="admin-loader">
-    <div class="panda-pulse">
-        <i data-lucide="shield-check" style="width: 35px; height: 35px;"></i>
-    </div>
-    <div class="loading-bar"></div>
-    <p style="margin-top: 15px; font-size: 10px; font-weight: 900; color: #ccc; letter-spacing: 2px; text-transform: uppercase;">Menyiapkan Data</p>
-</div>
 
 <div class="admin-wrapper">
     <aside class="sidebar" id="admin-sidebar">
@@ -158,7 +163,14 @@
                 <div style="overflow-x:auto;">
                     <table style="width:100%; border-collapse:collapse; font-size: 12px;">
                         <thead id="admin-table-head" style="background:#fafafa; border-bottom:1px solid #f0f0f0;"></thead>
-                        <tbody id="admin-table-body"></tbody>
+                        <tbody id="admin-table-body">
+                            <tr class="skeleton-row">
+                                <td style="padding:15px;"><div class="skeleton-line"></div></td>
+                                <td style="padding:15px;"><div class="skeleton-line"></div></td>
+                                <td style="padding:15px;"><div class="skeleton-line"></div></td>
+                                <td style="padding:15px;"><div class="skeleton-line"></div></td>
+                            </tr>
+                        </tbody>
                     </table>
                 </div>
 
