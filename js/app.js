@@ -29,6 +29,9 @@ const App = {
         if (hash === '#dashboard') pageFile = 'pages/dashboard-user.html';
         if (hash === '#history') pageFile = 'pages/history.html';
         if (hash === '#admin') pageFile = 'pages/dashboard-admin.html';
+        if (hash === '#admin') {pageFile = 'pages/dashboard-admin.html';
+            Admin.init(); // Panggil ini agar data user ter-cache untuk mapping nama
+}
 
         try {
             const res = await fetch(pageFile);
@@ -567,7 +570,7 @@ const Admin = {
     
         // 3. Render Body dengan Filter Kolom & Tombol Aksi Baru
         const start = (this.currentPage - 1) * this.rowsPerPage;
-        const pagedData = res.data.slice(start, start + this.rowsPerPage);
+        const pagedData = displayData.slice(start, start + this.rowsPerPage);
     
         body.innerHTML = pagedData.map((row, rowIndex) => `
             <tr style="border-bottom:1px solid #f8f8f8; transition: 0.2s;">
@@ -588,7 +591,7 @@ const Admin = {
                     </div>
                 </td>
             </tr>
-        `).join('');
+        `).join('');d
     
         // Update Pagination Info
         document.getElementById('admin-page-info').innerText = `Halaman ${this.currentPage} / ${Math.ceil(res.data.length / this.rowsPerPage) || 1}`;
