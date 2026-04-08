@@ -591,7 +591,7 @@ const Admin = {
                     </div>
                 </td>
             </tr>
-        `).join('');d
+        `).join('');
     
         // Update Pagination Info
         document.getElementById('admin-page-info').innerText = `Halaman ${this.currentPage} / ${Math.ceil(res.data.length / this.rowsPerPage) || 1}`;
