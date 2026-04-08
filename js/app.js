@@ -480,7 +480,7 @@ const Admin = {
         } catch (e) {
             body.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color:red;">Gagal muat data. Coba lagi.</td></tr>';
         }
-    }
+    },
 
     renderPage() {
         const res = this.cache[this.currentTab];
