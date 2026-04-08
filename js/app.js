@@ -173,6 +173,17 @@ const App = {
         setTimeout(() => window.location.hash = '#login', 500);
     },
 
+    handleErrorRedirect() {
+        const session = JSON.parse(localStorage.getItem('sipanda_session'));
+        if (!session) {
+            window.location.hash = '#login';
+        } else {
+            // Arahkan sesuai role masing-masing
+            const role = session.Role ? session.Role.toLowerCase() : '';
+            window.location.hash = (role === 'admin') ? '#admin' : '#dashboard';
+        }
+    },
+
     // --- LOGIKA SWIPE TO DISMISS ---
     initSwipeToDismiss(element, closeCallback) {
         let startY = 0;
