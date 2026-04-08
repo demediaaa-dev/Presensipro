@@ -505,19 +505,22 @@ const Admin = {
         // Angka 0, 1, 2 dsb adalah indeks kolom di Google Sheets (kolom A=0, B=1, dst)
         const columnConfig = {
             'users': [
-                { index: 1, label: 'NAMA PEGAWAI' },
-                { index: 2, label: 'JABATAN' },
-                { index: 5, label: 'STATUS' }
+                { index: 0, label: 'NIP' },
+                { index: 1, label: 'NAMA' },
+                { index: 6, label: 'KODE SHIFT' }
             ],
             'shifts': [
-                { index: 0, label: 'NAMA LOKASI' },
-                { index: 3, label: 'RADIUS (M)' }
+                { index: 0, label: 'KODE SHIFT' },
+                { index: 1, label: 'NAMA SHIFT' },
+                { index: 2, label: 'JAM MASUK' },
+                { index: 3, label: 'JAM PULANG' }
             ],
             'attendance': [
                 { index: 1, label: 'NAMA' },
                 { index: 2, label: 'TANGGAL' },
                 { index: 3, label: 'JAM MASUK' },
-                { index: 6, label: 'KETERANGAN' }
+                { index: 4, label: 'JAM PULANG' },
+                { index: 9, label: 'KETERANGAN' }
             ],
             'outstation': [
                 { index: 1, label: 'NAMA' },
@@ -527,6 +530,21 @@ const Admin = {
         };
     
         const activeCols = columnConfig[this.currentTab] || [];
+
+        // --- LOGIKA MAPPING NAMA (Khusus Attendance) ---
+        let displayData = [...res.data]; // Copy data asli
+        
+        if (this.currentTab === 'attendance' && this.cache['users']) {
+            const userList = this.cache['users'].data;
+            displayData = res.data.map(row => {
+                const userId = row[1]; // Misal User_ID ada di kolom B (indeks 1)
+                // Cari baris user yang kolom ID-nya (indeks 0) cocok
+                const userMatch = userList.find(u => u[0] == userId); 
+                const newRow = [...row];
+                newRow[0] = userMatch ? userMatch[1] : `ID: ${userId}`; // Ganti kolom index 0 dengan nama
+                return newRow;
+            });
+        }
     
         // 2. Render Header Manual
         head.innerHTML = `
