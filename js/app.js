@@ -5,19 +5,6 @@ window.addEventListener('beforeinstallprompt', (e) => {
   deferredPrompt = e;
 });
 
-// Tambahkan fungsi ini di dalam objek App
-App.installApp = async () => {
-  if (!deferredPrompt) {
-    alert("Aplikasi sudah terinstal atau browser tidak mendukung.");
-    return;
-  }
-  deferredPrompt.prompt();
-  const { outcome } = await deferredPrompt.userChoice;
-  if (outcome === 'accepted') {
-    deferredPrompt = null;
-  }
-};
-
 const App = {
     user: null,
     isWithinRadius: false,
@@ -43,93 +30,85 @@ const App = {
         this.router();
     },
 
+// --- FUNGSI ROUTER (PERBAIKAN UTAMA) ---
     async router() {
         const hash = window.location.hash || '#login';
         const root = document.getElementById('app-content');
         if (!root) return;
 
-        const session = JSON.parse(localStorage.getItem('sipanda_session'));
-        this.user = session;
+        // Pastikan modal tertutup saat pindah halaman
+        this.closePresence();
+        this.closeLogoutModal();
 
         let pageFile = 'pages/login.html';
-        let isError = false;
+        let isErrorPage = false;
 
-        // --- 1. HALAMAN LOGIN ---
+        // Logika Proteksi Rute
         if (hash === '#login') {
             if (this.user) {
-                // Jika sudah login, paksa ke halaman masing-masing
                 window.location.hash = (this.user.Role.toLowerCase() === 'admin') ? '#admin' : '#dashboard';
                 return;
             }
             pageFile = 'pages/login.html';
-        }
-
-        // --- 2. HALAMAN USER (Karyawan) ---
-        else if (hash === '#dashboard' || hash === '#history') {
-            if (!this.user) { 
-                window.location.hash = '#login'; return; 
-            }
-            
-            // PROTEKSI: Jika Admin coba masuk ke halaman User
-            if (this.user.Role.toLowerCase() !== 'user') {
-                isError = true;
-                pageFile = 'pages/error.html';
-            } else {
-                pageFile = (hash === '#dashboard') ? 'pages/dashboard-user.html' : 'pages/history.html';
-            }
-        }
-
-        // --- 3. HALAMAN ADMIN ---
+        } 
+        else if (hash === '#dashboard') {
+            if (!this.user) { window.location.hash = '#login'; return; }
+            if (this.user.Role.toLowerCase() !== 'user') { pageFile = 'pages/error.html'; isErrorPage = true; }
+            else { pageFile = 'pages/dashboard-user.html'; }
+        } 
         else if (hash === '#admin') {
-            if (!this.user) { 
-                window.location.hash = '#login'; return; 
-            }
-
-            // PROTEKSI: Jika User (karyawan) coba masuk ke halaman Admin
-            if (this.user.Role.toLowerCase() !== 'admin') {
-                isError = true;
-                pageFile = 'pages/error.html';
-            } else {
-                pageFile = 'pages/dashboard-admin.html';
-            }
+            if (!this.user) { window.location.hash = '#login'; return; }
+            if (this.user.Role.toLowerCase() !== 'admin') { pageFile = 'pages/error.html'; isErrorPage = true; }
+            else { pageFile = 'pages/dashboard-admin.html'; }
         }
-
-        // --- 4. ROUTE TIDAK DIKENAL ---
-        else {
-            isError = true;
-            pageFile = 'pages/error.html';
-        }
-
         else if (hash === '#download') {
             pageFile = 'pages/download.html';
-            isError = true; // Kita set true agar background merah index.html hilang (opsional)
+            isErrorPage = true; // Agar background merah index sembunyi
         }
-      
+        else {
+            pageFile = 'pages/error.html';
+            isErrorPage = true;
+        }
 
-        // --- PROSES FETCH & RENDER ---
+        // Proses Fetch HTML
         try {
             const res = await fetch(pageFile);
             const html = await res.text();
             root.innerHTML = html;
 
+            // Kontrol Background Merah di Index.html
+            const bgRed = document.querySelector('.header-red-section');
+            if (hash === '#login' || isErrorPage) {
+                if(bgRed) bgRed.style.display = 'none';
+            } else {
+                if(bgRed) bgRed.style.display = 'block';
+            }
+
+            // Inisialisasi Ulang Icon & Data
             lucide.createIcons();
             
-            // Eksekusi logika hanya jika bukan halaman error
-            if (!isError) {
-                if (hash === '#admin') {
-                    Admin.init(); 
-                }
-                
-                if (this.user && hash !== '#login') {
-                    this.initPageData();
-                    // Hanya syncData jika di dashboard user
-                    if(hash === '#dashboard') await this.syncData();
-                    this.startClock();
-                }
+            if (!isErrorPage && this.user) {
+                this.initPageData();
+                if (hash === '#dashboard') await this.syncData();
+                if (hash === '#admin') Admin.init();
+                this.startClock();
             }
         } catch (e) {
             console.error("Router Error:", e);
-            root.innerHTML = `<div class="p-10 text-center">Gagal memuat halaman.</div>`;
+            root.innerHTML = "Gagal memuat halaman.";
+        }
+    },
+
+    // --- FUNGSI INSTALL PWA ---
+    installApp: async () => {
+        if (!deferredPrompt) {
+            alert("Gunakan Chrome di Android atau buka menu 'Add to Home Screen' di iPhone.");
+            return;
+        }
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            deferredPrompt = null;
         }
     },
     
