@@ -97,9 +97,15 @@
             <div style="background:white; border-radius:25px; box-shadow:0 10px 30px rgba(0,0,0,0.02); border:1px solid #f0f0f0; overflow:hidden;">
                 <div style="padding: 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f5f5f5;">
                     <input type="text" placeholder="Cari..." style="padding: 10px 15px; border-radius: 12px; border: 1px solid #eee; background: #f9fafb; width: 200px; outline: none; font-size: 12px; font-weight: 600;">
-                    <button onclick="Admin.openCreateModal()" style="background: var(--red-panda); color: white; border: none; padding: 10px 18px; border-radius: 12px; font-size: 11px; font-weight: 800; cursor: pointer;">
-                        + DATA BARU
-                    </button>
+                    <div style="display:flex; gap:10px;">
+                        <button onclick="Admin.refreshData()" style="background: #f0f0f0; border: none; padding: 10px; border-radius: 12px; cursor: pointer; color: #666;">
+                            <i data-lucide="refresh-cw" style="width:16px;"></i>
+                        </button>
+                        
+                        <button onclick="Admin.openCreateModal()" style="background: var(--red-panda); color: white; border: none; padding: 10px 18px; border-radius: 12px; font-size: 11px; font-weight: 800; cursor: pointer;">
+                            + DATA BARU
+                        </button>
+                    </div>
                 </div>
                 <div style="overflow-x:auto;">
                     <table style="width:100%; border-collapse:collapse; font-size: 12px;">
