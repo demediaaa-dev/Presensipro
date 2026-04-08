@@ -1,3 +1,23 @@
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+});
+
+// Tambahkan fungsi ini di dalam objek App
+App.installApp = async () => {
+  if (!deferredPrompt) {
+    alert("Aplikasi sudah terinstal atau browser tidak mendukung.");
+    return;
+  }
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') {
+    deferredPrompt = null;
+  }
+};
+
 const App = {
     user: null,
     isWithinRadius: false,
