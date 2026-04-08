@@ -28,11 +28,11 @@ const App = {
         let pageFile = 'pages/login.html';
         if (hash === '#dashboard') pageFile = 'pages/dashboard-user.html';
         if (hash === '#history') pageFile = 'pages/history.html';
-        if (hash === '#admin') pageFile = 'pages/dashboard-admin.html';
-        if (hash === '#admin') {pageFile = 'pages/dashboard-admin.html';
-            Admin.init(); // Panggil ini agar data user ter-cache untuk mapping nama
-}
-
+        if (hash === '#admin') {
+            pageFile = 'pages/dashboard-admin.html';
+            Admin.init(); // Pastikan Admin.init dipanggil di sini
+        }
+    
         try {
             const res = await fetch(pageFile);
             root.innerHTML = await res.text();
