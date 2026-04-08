@@ -430,92 +430,85 @@ const Admin = {
     currentTab: 'users',
     cache: {},
     currentPage: 1,
-    rowsPerPage: 10, // Ubah angka ini untuk jumlah baris per halaman
+    rowsPerPage: 10,
 
-    // Tampilkan loader lalu buka halaman setelah data ada
-    async init() {
-        // 1. Langsung tampilkan halaman admin (TIDAK PERLU TUNGGU DATA)
-        console.log("Membuka halaman admin...");
+    toggleSidebar() {
+        document.getElementById('admin-sidebar').classList.toggle('collapsed');
+    },
+
+    // 1. Fungsi Pindah Tab (INSTAN)
+    switchTab(tab) {
+        this.currentTab = tab;
+        this.currentPage = 1;
+
+        // Visual langsung berubah tanpa nunggu data
+        document.querySelectorAll('.nav-item, .mobile-item').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll(`[data-tab="${tab}"]`).forEach(el => el.classList.add('active'));
         
-        // 2. Tarik data di latar belakang
+        const titleMap = { 'users': 'Data Pegawai', 'shifts': 'Titik Lokasi', 'attendance': 'Rekap Presensi', 'outstation': 'Dinas Luar' };
+        document.getElementById('admin-page-title').innerText = titleMap[tab];
+
         this.loadTableData();
     },
 
-    async switchTab(tab) {
-        this.currentTab = tab;
-        this.currentPage = 1; // Reset ke halaman 1
-        
-        document.querySelectorAll('.nav-item, .mobile-item').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll(`[data-tab="${tab}"]`).forEach(el => el.classList.add('active'));
-
-        if (this.cache[tab]) {
-            this.renderPage();
-        } else {
-            await this.loadTableData();
-        }
-    },
-
+    // 2. Fungsi Ambil Data (SKELETON)
     async loadTableData() {
         const body = document.getElementById('admin-table-body');
         
-        // Tampilkan 5 baris skeleton saat loading
-        let skeletonHtml = '';
-        for(let i=0; i<5; i++) {
-            skeletonHtml += `<tr><td colspan="10" style="padding:15px;"><div class="skeleton-line"></div></td></tr>`;
+        // Cek Cache dulu biar sat-set
+        if (this.cache[this.currentTab]) {
+            this.renderPage();
+            return;
         }
-        body.innerHTML = skeletonHtml;
+
+        // Kalau belum ada di cache, kasih skeleton
+        body.innerHTML = '<tr><td colspan="10" style="padding:20px;"><div class="skeleton-line"></div></td></tr>'.repeat(5);
 
         try {
-            // Gunakan caching agar kalau balik lagi ke tab ini instan
-            if (this.cache[this.currentTab]) {
-                this.renderPage();
-                return;
-            }
-
-            const response = await API.call({ action: "admin_get_data", sheet: this.currentTab });
-            if (response.success) {
-                this.cache[this.currentTab] = response;
+            const res = await API.call({ action: "admin_get_data", sheet: this.currentTab });
+            if (res.success) {
+                this.cache[this.currentTab] = res;
                 this.renderPage();
             }
         } catch (e) {
-            body.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color:red;">Gagal muat data. Coba lagi.</td></tr>';
+            body.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px;">Gagal memuat. Periksa koneksi.</td></tr>';
         }
     },
 
+    // 3. Render Tabel & Ikon (AKURAT)
     renderPage() {
         const res = this.cache[this.currentTab];
         const body = document.getElementById('admin-table-body');
         const head = document.getElementById('admin-table-head');
         
-        // Header Render
-        let hHtml = '<tr>';
-        res.headers.forEach(h => hHtml += `<th style="padding:15px; text-align:left; color:#999; font-size:10px;">${h.toUpperCase()}</th>`);
-        hHtml += '<th style="text-align:center;">AKSI</th></tr>';
-        head.innerHTML = hHtml;
+        // Render Header
+        head.innerHTML = `<tr>${res.headers.map(h => `<th style="padding:15px; text-align:left; color:#999; font-size:10px;">${h.toUpperCase()}</th>`).join('')}<th style="text-align:center;">AKSI</th></tr>`;
 
-        // Pagination Logic
+        // Render Rows (Pagination)
         const start = (this.currentPage - 1) * this.rowsPerPage;
-        const end = start + this.rowsPerPage;
-        const pagedData = res.data.slice(start, end);
+        const pagedData = res.data.slice(start, start + this.rowsPerPage);
 
-        let bHtml = '';
-        pagedData.forEach(row => {
-            bHtml += `<tr style="border-bottom:1px solid #f8f8f8;">`;
-            row.forEach(cell => bHtml += `<td style="padding:15px; font-weight:600;">${cell || '-'}</td>`);
-            bHtml += `<td style="padding:15px; text-align:center;">...</td></tr>`;
-        });
-        body.innerHTML = bHtml;
+        body.innerHTML = pagedData.map(row => `
+            <tr style="border-bottom:1px solid #f8f8f8;">
+                ${row.map(cell => `<td style="padding:15px; font-weight:600; color:#444;">${cell || '-'}</td>`).join('')}
+                <td style="padding:15px; text-align:center;">
+                    <button class="btn-action" style="color:#0066ff; border:none; background:none; cursor:pointer;"><i data-lucide="edit-2" style="width:14px;"></i></button>
+                </td>
+            </tr>
+        `).join('');
 
-        // Update Info & Tombol
-        document.getElementById('admin-page-info').innerText = `Halaman ${this.currentPage} dari ${Math.ceil(res.data.length / this.rowsPerPage)}`;
+        // Update Pagination Footer
+        document.getElementById('admin-page-info').innerText = `Halaman ${this.currentPage} / ${Math.ceil(res.data.length / this.rowsPerPage) || 1}`;
         document.getElementById('admin-prev-btn').disabled = this.currentPage === 1;
-        document.getElementById('admin-next-btn').disabled = end >= res.data.length;
-        
+        document.getElementById('admin-next-btn').disabled = start + this.rowsPerPage >= res.data.length;
+
+        // LANGSUNG panggil Lucide setiap kali render selesai
         if (window.lucide) lucide.createIcons();
     },
 
     nextPage() { this.currentPage++; this.renderPage(); },
-    prevPage() { this.currentPage--; this.renderPage(); }
+    prevPage() { this.currentPage--; this.renderPage(); },
+    refreshData() { this.cache = {}; this.loadTableData(); }
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());
