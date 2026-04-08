@@ -1,71 +1,76 @@
 let deferredPrompt;
 
 window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
+    e.preventDefault();
+    deferredPrompt = e;
 });
 
 const App = {
-    user: null,
-    isWithinRadius: false,
-    attendanceStatus: 'none',
-    lastTimeIn: '-- : --',  // Tambahkan ini
-    lastTimeOut: '-- : --', // Tambahkan ini
-    hasFaceData: false,
-    timer: null,
-    officeLocation: null,
+    user: null,
+    isWithinRadius: false,
+    attendanceStatus: 'none',
+    lastTimeIn: '-- : --',
+    lastTimeOut: '-- : --',
+    hasFaceData: false,
+    timer: null,
+    officeLocation: null,
 
-    async init() {
-        const saved = localStorage.getItem('sipanda_session');
-        if (saved) {
-            this.user = JSON.parse(saved);
-            if (!window.location.hash || window.location.hash === '#login') {
-                window.location.hash = '#dashboard';
-            }
-        } else {
-            window.location.hash = '#login';
-        }
+    async init() {
+        // 1. Ambil sesi dari localStorage
+        const saved = localStorage.getItem('sipanda_session');
+        if (saved) {
+            try {
+                this.user = JSON.parse(saved);
+            } catch (e) {
+                console.error("Session corrupt, clearing...");
+                localStorage.removeItem('sipanda_session');
+            }
+        }
 
-        window.addEventListener('hashchange', () => this.router());
-        this.router();
-    },
+        // 2. Pasang listener navigasi
+        window.addEventListener('hashchange', () => this.router());
+
+        // 3. Jalankan router pertama kali setelah DOM dipastikan siap
+        if (document.readyState === 'complete') {
+            this.router();
+        } else {
+            window.addEventListener('load', () => this.router());
+        }
+    },
 
     async router() {
         const hash = window.location.hash || '#login';
         const root = document.getElementById('app-content');
+        const bgRed = document.querySelector('.header-red-section');
+        
         if (!root) return;
 
-        // --- 1. CLEANUP STATE (Penting untuk PWA agar tidak berat) ---
+        // --- CLEANUP STATE ---
         if (typeof this.closePresence === 'function') this.closePresence();
         if (typeof this.closeLogoutModal === 'function') this.closeLogoutModal();
-        if (this.timer) clearInterval(this.timer); // Hentikan jam lama sebelum ganti halaman
+        if (this.timer) clearInterval(this.timer);
 
         let pageFile = 'pages/login.html';
-        let isFullPage = false; // Flag untuk sembunyikan bg merah (login/error)
+        let isFullPage = false; 
 
-        // --- 2. LOGIKA PROTEKSI RUTE & ROLE ---
+        // --- LOGIKA PROTEKSI RUTE ---
         if (hash === '#login') {
             if (this.user) {
-                window.location.hash = (this.user.Role.toLowerCase() === 'admin') ? '#admin' : '#dashboard';
+                // Gunakan replace agar tidak menumpuk history stack
+                const target = (this.user.Role.toLowerCase() === 'admin') ? '#admin' : '#dashboard';
+                window.location.replace(target);
                 return;
             }
             pageFile = 'pages/login.html';
             isFullPage = true;
         } 
         else if (hash === '#dashboard') {
-            if (!this.user) { window.location.hash = '#login'; return; }
-            
-            // Proteksi: Jika admin nyasar ke dashboard user, arahkan ke admin
-            if (this.user.Role.toLowerCase() === 'admin') {
-                window.location.hash = '#admin';
-                return;
-            }
+            if (!this.user) { window.location.replace('#login'); return; }
+            if (this.user.Role.toLowerCase() === 'admin') { window.location.replace('#admin'); return; }
             pageFile = 'pages/dashboard-user.html';
         } 
         else if (hash === '#admin') {
-            if (!this.user) { window.location.hash = '#login'; return; }
-            
-            // Proteksi: Jika user biasa coba akses admin
+            if (!this.user) { window.location.replace('#login'); return; }
             if (this.user.Role.toLowerCase() !== 'admin') { 
                 pageFile = 'pages/error.html'; 
                 isFullPage = true; 
@@ -82,60 +87,56 @@ const App = {
             isFullPage = true;
         }
 
-        // --- 3. PROSES FETCH & RENDER ---
+        // --- PROSES RENDER ---
         try {
-            // Beri feedback visual saat loading (opsional)
-            root.style.opacity = '0.5';
+            // Kontrol background merah SEBELUM fetch agar tidak blank saat loading
+            if (bgRed) {
+                bgRed.style.display = isFullPage ? 'none' : 'block';
+            }
+
+            root.style.opacity = '0'; // Hide content during load
 
             const res = await fetch(pageFile);
-            if (!res.ok) throw new Error(`Halaman ${pageFile} tidak ditemukan.`);
+            if (!res.ok) throw new Error(`Halaman tidak ditemukan`);
             
             const html = await res.text();
             root.innerHTML = html;
 
-            // --- 4. KONTROL BACKGROUND MERAH (FIX BLANK) ---
-            const bgRed = document.querySelector('.header-red-section');
-            if (bgRed) {
-                // Background merah hanya muncul di dashboard (isFullPage = false)
-                bgRed.style.display = isFullPage ? 'none' : 'block';
-            }
-
-            // --- 5. RE-INITIALIZATION (PWA & UI) ---
+            // Trigger Lucide Icons
             if (window.lucide) lucide.createIcons();
             
-            // Tampilkan kembali konten
+            // Tampilkan kembali
+            root.style.transition = 'opacity 0.3s ease';
             root.style.opacity = '1';
 
+            // --- INISIALISASI DATA HALAMAN ---
             if (!isFullPage && this.user) {
-                // Gunakan setTimeout agar DOM benar-benar siap sebelum diisi data
-                setTimeout(async () => {
-                    this.initPageData(); // Isi Nama & Role
+                // Gunakan requestAnimationFrame agar browser selesai render DOM dulu
+                requestAnimationFrame(async () => {
+                    this.initPageData();
                     
                     if (hash === '#dashboard') {
-                        await this.syncData(); // Tarik status kehadiran & GPS
+                        await this.syncData();
                     }
                     
                     if (hash === '#admin' && typeof Admin !== 'undefined') {
-                        Admin.init(); // Load tabel data pegawai
+                        Admin.init();
                     }
                     
-                    this.startClock(); // Jalankan timer detik
-                }, 50);
+                    this.startClock();
+                });
             }
         } catch (e) {
             console.error("Router Error:", e);
+            if (bgRed) bgRed.style.display = 'none';
             root.style.opacity = '1';
             root.innerHTML = `
                 <div class="min-h-screen flex flex-col items-center justify-center p-10 text-center">
-                    <div class="bg-red-100 p-4 rounded-2xl mb-4">
-                        <i data-lucide="alert-circle" class="w-12 h-12 text-red-600"></i>
-                    </div>
-                    <h1 class="text-2xl font-black text-gray-800 uppercase italic">Oops!</h1>
-                    <p class="text-gray-500 text-sm font-bold uppercase tracking-widest mt-2">${e.message}</p>
-                    <button onclick="window.location.hash='#login'" class="mt-8 bg-red-600 text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">Kembali</button>
+                    <h1 class="text-2xl font-black text-gray-800">ERROR</h1>
+                    <p class="text-gray-500 mt-2">${e.message}</p>
+                    <button onclick="window.location.replace('#login')" class="mt-8 bg-red-600 text-white px-10 py-4 rounded-2xl font-bold uppercase tracking-widest shadow-xl">Kembali</button>
                 </div>
             `;
-            if (window.lucide) lucide.createIcons();
         }
     },
   
