@@ -434,15 +434,11 @@ const Admin = {
 
     // Tampilkan loader lalu buka halaman setelah data ada
     async init() {
-        const loader = document.getElementById('admin-loader');
-        loader.style.display = 'flex';
-        loader.style.opacity = '1';
-
-        await this.loadTableData();
+        // 1. Langsung tampilkan halaman admin (TIDAK PERLU TUNGGU DATA)
+        console.log("Membuka halaman admin...");
         
-        // Hilangkan loader dengan efek fade out
-        loader.style.opacity = '0';
-        setTimeout(() => { loader.style.display = 'none'; }, 500);
+        // 2. Tarik data di latar belakang
+        this.loadTableData();
     },
 
     async switchTab(tab) {
@@ -460,14 +456,31 @@ const Admin = {
     },
 
     async loadTableData() {
+        const body = document.getElementById('admin-table-body');
+        
+        // Tampilkan 5 baris skeleton saat loading
+        let skeletonHtml = '';
+        for(let i=0; i<5; i++) {
+            skeletonHtml += `<tr><td colspan="10" style="padding:15px;"><div class="skeleton-line"></div></td></tr>`;
+        }
+        body.innerHTML = skeletonHtml;
+
         try {
+            // Gunakan caching agar kalau balik lagi ke tab ini instan
+            if (this.cache[this.currentTab]) {
+                this.renderPage();
+                return;
+            }
+
             const response = await API.call({ action: "admin_get_data", sheet: this.currentTab });
             if (response.success) {
                 this.cache[this.currentTab] = response;
                 this.renderPage();
             }
-        } catch (e) { console.error(e); }
-    },
+        } catch (e) {
+            body.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color:red;">Gagal muat data. Coba lagi.</td></tr>';
+        }
+    }
 
     renderPage() {
         const res = this.cache[this.currentTab];
