@@ -7,6 +7,32 @@
     
     .admin-wrapper { display: flex; height: 100vh; background: var(--bg-light); font-family: 'Plus Jakarta Sans', sans-serif; overflow: hidden; }
     
+    /* LOADING OVERLAY UNIK */
+    #admin-loader {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: white; z-index: 9999; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; transition: 0.5s ease;
+    }
+    .panda-pulse {
+        width: 80px; height: 80px; background: var(--red-panda); border-radius: 24px;
+        display: flex; align-items: center; justify-content: center;
+        animation: pulse-red 1.5s infinite ease-in-out; color: white;
+    }
+    @keyframes pulse-red {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(204, 43, 43, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(204, 43, 43, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(204, 43, 43, 0); }
+    }
+    .loading-bar {
+        width: 150px; height: 4px; background: var(--red-soft); border-radius: 10px;
+        margin-top: 20px; overflow: hidden; position: relative;
+    }
+    .loading-bar::after {
+        content: ""; position: absolute; left: -100%; width: 100%; height: 100%;
+        background: var(--red-panda); animation: load-slide 1.5s infinite linear;
+    }
+    @keyframes load-slide { 0% { left: -100%; } 100% { left: 100%; } }
+
     /* Sidebar Styling */
     .sidebar { 
         width: 280px; background: white; border-right: 1px solid #f0f0f0; 
@@ -23,10 +49,23 @@
     .nav-item:hover { background: var(--red-soft); color: var(--red-panda); }
     .nav-item.active { background: var(--red-soft); color: var(--red-panda); box-shadow: inset 4px 0 0 var(--red-panda); }
 
+    /* Pagination Styling */
+    .pagination-container {
+        padding: 15px 20px; border-top: 1px solid #f5f5f5;
+        display: flex; justify-content: space-between; align-items: center; background: white;
+    }
+    .page-btn {
+        padding: 8px 14px; border-radius: 10px; border: 1px solid #eee;
+        background: white; color: #666; font-size: 11px; font-weight: 800;
+        cursor: pointer; transition: 0.2s;
+    }
+    .page-btn:hover:not(:disabled) { background: var(--red-soft); color: var(--red-panda); border-color: var(--red-panda); }
+    .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .page-info { font-size: 11px; font-weight: 700; color: #999; }
+
     /* Main Area */
     .main-content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     
-    /* Mobile Bottom Nav (Static/Non-Floating) */
     .bottom-nav { 
         display: none; position: fixed; bottom: 0; left: 0; right: 0; 
         background: white; padding: 10px 5px; border-top: 1px solid #eee;
@@ -46,6 +85,14 @@
     }
 </style>
 
+<div id="admin-loader">
+    <div class="panda-pulse">
+        <i data-lucide="shield-check" style="width: 35px; height: 35px;"></i>
+    </div>
+    <div class="loading-bar"></div>
+    <p style="margin-top: 15px; font-size: 10px; font-weight: 900; color: #ccc; letter-spacing: 2px; text-transform: uppercase;">Menyiapkan Data</p>
+</div>
+
 <div class="admin-wrapper">
     <aside class="sidebar" id="admin-sidebar">
         <div class="sidebar-header" style="padding: 25px 20px;">
@@ -62,7 +109,7 @@
         
         <nav class="sidebar-nav">
             <div onclick="Admin.switchTab('users', this)" class="nav-item active" data-tab="users"><i data-lucide="users"></i> <span>Pegawai</span></div>
-            <div onclick="Admin.switchTab('shifts', this)" class="nav-item" data-tab="shifts"><i data-lucide="map-pin"></i> <span>Lokasi</span></div>
+            <div onclick="Admin.switchTab('shifts', this)" class="nav-item" data-tab="shifts"><i data-lucide="map-pin"></i> <span>Titik Lokasi</span></div>
             <div onclick="Admin.switchTab('attendance', this)" class="nav-item" data-tab="attendance"><i data-lucide="calendar-check"></i> <span>Presensi</span></div>
             <div onclick="Admin.switchTab('outstation', this)" class="nav-item" data-tab="outstation"><i data-lucide="map"></i> <span>Dinas Luar</span></div>
         </nav>
@@ -96,7 +143,7 @@
         <section class="content-scroll" style="flex:1; overflow-y:auto; padding: 25px;">
             <div style="background:white; border-radius:25px; box-shadow:0 10px 30px rgba(0,0,0,0.02); border:1px solid #f0f0f0; overflow:hidden;">
                 <div style="padding: 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f5f5f5;">
-                    <input type="text" placeholder="Cari..." style="padding: 10px 15px; border-radius: 12px; border: 1px solid #eee; background: #f9fafb; width: 200px; outline: none; font-size: 12px; font-weight: 600;">
+                    <input type="text" onkeyup="Admin.searchData(this.value)" placeholder="Cari..." style="padding: 10px 15px; border-radius: 12px; border: 1px solid #eee; background: #f9fafb; width: 200px; outline: none; font-size: 12px; font-weight: 600;">
                     <div style="display:flex; gap:10px;">
                         <button onclick="Admin.refreshData()" style="background: #f0f0f0; border: none; padding: 10px; border-radius: 12px; cursor: pointer; color: #666;">
                             <i data-lucide="refresh-cw" style="width:16px;"></i>
@@ -107,13 +154,20 @@
                         </button>
                     </div>
                 </div>
+                
                 <div style="overflow-x:auto;">
                     <table style="width:100%; border-collapse:collapse; font-size: 12px;">
                         <thead id="admin-table-head" style="background:#fafafa; border-bottom:1px solid #f0f0f0;"></thead>
-                        <tbody id="admin-table-body">
-                            <tr><td colspan="10" style="text-align:center; padding:50px; color:#ccc;">Memuat data...</td></tr>
-                        </tbody>
+                        <tbody id="admin-table-body"></tbody>
                     </table>
+                </div>
+
+                <div class="pagination-container">
+                    <div class="page-info" id="admin-page-info">Menampilkan 0 data</div>
+                    <div style="display:flex; gap:8px;">
+                        <button id="admin-prev-btn" onclick="Admin.prevPage()" class="page-btn"><i data-lucide="chevron-left" style="width:14px;"></i></button>
+                        <button id="admin-next-btn" onclick="Admin.nextPage()" class="page-btn"><i data-lucide="chevron-right" style="width:14px;"></i></button>
+                    </div>
                 </div>
             </div>
         </section>
