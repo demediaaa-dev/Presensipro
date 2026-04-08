@@ -23,42 +23,40 @@ const App = {
         this.router();
     },
 
-// BAGIAN ROUTER YANG PERLU DIPERBAIKI
-    async router() {
-        const hash = window.location.hash || '#login';
-        const root = document.getElementById('app-content');
-        if (!root) return; // Guard clause jika element root tidak ada
-    
-        let pageFile = 'pages/login.html';
-        if (hash === '#dashboard') pageFile = 'pages/dashboard-user.html';
-        if (hash === '#history') pageFile = 'pages/history.html';
-        if (hash === '#admin') pageFile = 'pages/dashboard-admin.html';
-        
-    
-        try {
-            const res = await fetch(pageFile);
-            if (!res.ok) throw new Error("Gagal mengambil file halaman");
-            
-            const html = await res.text();
-            root.innerHTML = html; // 1. Masukkan HTML dulu
-    
-            // 2. Baru jalankan logika setelah elemen masuk ke DOM
-            if (hash === '#admin') {
-                Admin.init(); 
-            }
-    
-            if (hash !== '#login') {
-                await this.syncData();
-                this.initPageData();
-            }
-            
-            lucide.createIcons();
-            this.startClock();
-        } catch (e) { 
-            console.error("Router Error:", e);
-            root.innerHTML = `<div class="p-10 text-center">Terjadi kesalahan saat memuat halaman.</div>`;
-        }
-    },
+    async router() {
+        const hash = window.location.hash || '#login';
+        const root = document.getElementById('app-content');
+        if (!root) return;
+    
+        let pageFile = 'pages/login.html';
+        if (hash === '#dashboard') pageFile = 'pages/dashboard-user.html';
+        if (hash === '#history') pageFile = 'pages/history.html';
+        if (hash === '#admin') pageFile = 'pages/dashboard-admin.html';
+    
+        try {
+            const res = await fetch(pageFile);
+            if (!res.ok) throw new Error("Gagal mengambil file");
+            
+            const html = await res.text();
+            root.innerHTML = html;
+    
+            if (hash === '#admin') {
+                Admin.init(); 
+            }
+    
+            if (hash !== '#login') {
+                // Jalankan initPageData dulu untuk mengisi Nama/Role
+                this.initPageData(); 
+                // Baru tarik data terbaru dari server
+                await this.syncData(); 
+            }
+            
+            lucide.createIcons();
+            this.startClock();
+        } catch (e) { 
+            console.error("Router Error:", e);
+        }
+    },
 
 
     showToast(message, type = 'info') {
@@ -308,12 +306,18 @@ const App = {
         return R * c; 
     },
 
-    initPageData() {
-        if (!this.user) return;
-        document.querySelectorAll('.display-name').forEach(el => el.innerText = this.user.Name);
-        document.querySelectorAll('.display-role').forEach(el => el.innerText = this.user.Role);
-        if (window.location.hash === '#dashboard') this.updateDashboardUI();
-    },
+    initPageData() {
+        if (!this.user) return;
+        
+        // Isi Nama & Role
+        document.querySelectorAll('.display-name').forEach(el => el.innerText = this.user.Name);
+        document.querySelectorAll('.display-role').forEach(el => el.innerText = this.user.Role);
+        
+        // Jika di dashboard, paksa update UI termasuk jam
+        if (window.location.hash === '#dashboard') {
+            this.updateDashboardUI();
+        }
+    },
 
     updateDashboardUI() {
         const regCard = document.getElementById('face-reg-card');
