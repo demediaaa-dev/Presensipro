@@ -215,27 +215,19 @@ const App = {
         if (!this.user || !this.user.id) return;
         try {
             const res = await API.call({ action: "get_status", user_id: this.user.id });
-            
             if (res.success) {
-                // 1. Simpan semua data dari server ke state App
+                // Simpan data ke memori App
                 this.attendanceStatus = res.status;
                 this.hasFaceData = res.hasFaceData;
                 this.officeLocation = res.location;
-                
-                // Pastikan variabel ini terisi agar bisa dibaca updateDashboardUI
                 this.lastTimeIn = res.timeIn || "-- : --";
                 this.lastTimeOut = res.timeOut || "-- : --";
                 
-                // 2. Jalankan pengecekan lokasi (ini akan memicu updateDashboardUI juga)
                 this.checkLocation();
-                
-                // 3. Paksa update UI untuk memastikan jam segera tampil
                 this.updateDashboardUI();
-                
-                console.log("Sync Success: Data jam diperbarui", {in: this.lastTimeIn, out: this.lastTimeOut});
             }
         } catch (e) { 
-            console.error("Sync failed", e); 
+            console.error("Sync failed:", e); 
         }
     },
 
@@ -313,45 +305,35 @@ const App = {
         }
     },
 
-    updateDashboardUI() {
-        const regCard = document.getElementById('face-reg-card');
-        const btnPresensi = document.getElementById('btn-main-presence');
-        const labelPresensi = document.getElementById('label-main-presence');
+    updateDashboardUI() {
+        const regCard = document.getElementById('face-reg-card');
+        const btnPresensi = document.getElementById('btn-main-presence');
+        const labelPresensi = document.getElementById('label-main-presence');
         const elIn = document.getElementById('time-in');
         const elOut = document.getElementById('time-out');
 
-        if (regCard) {
-            // Jika sudah punya data wajah, sembunyikan kartu (tambah class hidden)
-            if (this.hasFaceData) {
-                regCard.classList.add('hidden');
-            } else {
-                regCard.classList.remove('hidden');
-            }
-        }
+        // --- Update Kartu Registrasi ---
+        if (regCard) {
+            this.hasFaceData ? regCard.classList.add('hidden') : regCard.classList.remove('hidden');
+        }
 
-        // Update tombol presensi utama
-        if (btnPresensi && labelPresensi) {
-            if (this.hasFaceData && this.isWithinRadius) {
-                const activeColor = this.attendanceStatus === 'in' ? 'bg-indigo-600' : 'bg-red-600';
-                
-                // UPDATE TEKS DI SINI
-                labelPresensi.innerText = this.attendanceStatus === 'in' ? 'PULANG' : 'MASUK';
-                
-                btnPresensi.className = `w-16 h-16 rounded-full flex flex-col items-center justify-center border-4 border-white shadow-xl transition active:scale-90 ${activeColor}`;
-                btnPresensi.style.pointerEvents = "auto";
-                btnPresensi.style.opacity = "1";
-            } else {
-                // Jika di luar radius atau belum ada data wajah
-                labelPresensi.innerText = "OFFSIDE"; 
-                btnPresensi.className = "w-16 h-16 rounded-full flex flex-col items-center justify-center bg-gray-300";
-                btnPresensi.style.pointerEvents = "none";
-                btnPresensi.style.opacity = "0.5";
-            }
-        }
+        // --- Update Tombol Utama ---
+        if (btnPresensi && labelPresensi) {
+            if (this.hasFaceData && this.isWithinRadius) {
+                const activeColor = this.attendanceStatus === 'in' ? 'bg-indigo-600' : 'bg-red-600';
+                labelPresensi.innerText = this.attendanceStatus === 'in' ? 'PULANG' : 'MASUK';
+                btnPresensi.className = `w-16 h-16 rounded-full flex flex-col items-center justify-center border-4 border-white shadow-xl transition active:scale-90 ${activeColor}`;
+                btnPresensi.style.pointerEvents = "auto";
+                btnPresensi.style.opacity = "1";
+            } else {
+                labelPresensi.innerText = "OFFSIDE"; 
+                btnPresensi.className = "w-16 h-16 rounded-full flex flex-col items-center justify-center bg-gray-300";
+                btnPresensi.style.pointerEvents = "none";
+                btnPresensi.style.opacity = "0.5";
+            }
+        }
 
-        const elIn = document.getElementById('time-in');
-        const elOut = document.getElementById('time-out');
-
+        // --- Update Jam Presensi (Ini yang tadi macet) ---
         const formatTime = (timeStr) => {
             if (!timeStr || timeStr === "" || timeStr === "-- : --") return "-- : --";
             if (typeof timeStr === 'string' && timeStr.includes('T')) {
