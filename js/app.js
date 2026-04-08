@@ -211,39 +211,33 @@ const App = {
         }
     },
 
-    async syncData() {
-        if (!this.user || !this.user.id) return;
-        try {
-            const res = await API.call({ action: "get_status", user_id: this.user.id });
-            if (res.success) {
-                this.attendanceStatus = res.status;
-                this.hasFaceData = res.hasFaceData;
-                this.officeLocation = res.location;
-                this.lastTimeIn = res.timeIn;
-                this.lastTimeOut = res.timeOut;
-                
+    async syncData() {
+        if (!this.user || !this.user.id) return;
+        try {
+            const res = await API.call({ action: "get_status", user_id: this.user.id });
+            
+            if (res.success) {
+                // 1. Simpan semua data dari server ke state App
+                this.attendanceStatus = res.status;
+                this.hasFaceData = res.hasFaceData;
+                this.officeLocation = res.location;
+                
+                // Pastikan variabel ini terisi agar bisa dibaca updateDashboardUI
+                this.lastTimeIn = res.timeIn || "-- : --";
+                this.lastTimeOut = res.timeOut || "-- : --";
+                
+                // 2. Jalankan pengecekan lokasi (ini akan memicu updateDashboardUI juga)
                 this.checkLocation();
-                this.updateDashboardUI();
-
-                const elIn = document.getElementById('time-in');
-                const elOut = document.getElementById('time-out');
-
-                // Fungsi pembantu untuk memotong jam jika formatnya kepanjangan
-                const formatTime = (timeStr) => {
-                    if (!timeStr || timeStr === "") return "-- : --";
-                    if (timeStr.includes('T')) { // Jika masih format ISO
-                        const d = new Date(timeStr);
-                        return d.getHours().toString().padStart(2, '0') + ":" + 
-                            d.getMinutes().toString().padStart(2, '0');
-                    }
-                    return timeStr; // Jika sudah format "HH:mm"
-                };
-
-                if (elIn) elIn.innerText = formatTime(res.timeIn);
-                if (elOut) elOut.innerText = formatTime(res.timeOut);
-            }
-        } catch (e) { console.error("Sync failed", e); }
-    },
+                
+                // 3. Paksa update UI untuk memastikan jam segera tampil
+                this.updateDashboardUI();
+                
+                console.log("Sync Success: Data jam diperbarui", {in: this.lastTimeIn, out: this.lastTimeOut});
+            }
+        } catch (e) { 
+            console.error("Sync failed", e); 
+        }
+    },
 
     checkLocation() {
         if (!navigator.geolocation) return;
@@ -355,20 +349,22 @@ const App = {
             }
         }
 
+        const elIn = document.getElementById('time-in');
+        const elOut = document.getElementById('time-out');
+
         const formatTime = (timeStr) => {
-            if (!timeStr || timeStr === "" || timeStr === "-") return "-- : --";
-            // Jika format ISO 1899-12-30T00:37...
+            if (!timeStr || timeStr === "" || timeStr === "-- : --") return "-- : --";
             if (typeof timeStr === 'string' && timeStr.includes('T')) {
                 const d = new Date(timeStr);
                 return d.getHours().toString().padStart(2, '0') + ":" + 
                        d.getMinutes().toString().padStart(2, '0');
             }
-            return timeStr; // Jika sudah format HH:mm
+            return timeStr;
         };
-    
-        if (elIn) elIn.innerText = formatTime(this.lastTimeIn); 
+
+        if (elIn) elIn.innerText = formatTime(this.lastTimeIn);
         if (elOut) elOut.innerText = formatTime(this.lastTimeOut);
-    },
+    },
 
     // --- MANAJEMEN MODAL KAMERA ---
     openCameraModal(mode = 'presence') {
