@@ -16,25 +16,26 @@ const App = {
     officeLocation: null,
 
     async init() {
-        // 1. Ambil sesi dari localStorage
+        console.log("App Initializing...");
+        
+        // 1. Ambil sesi
         const saved = localStorage.getItem('sipanda_session');
         if (saved) {
             try {
                 this.user = JSON.parse(saved);
             } catch (e) {
-                console.error("Session corrupt, clearing...");
                 localStorage.removeItem('sipanda_session');
             }
         }
 
-        // 2. Pasang listener navigasi
+        // 2. Pasang Listener navigasi
         window.addEventListener('hashchange', () => this.router());
 
-        // 3. Jalankan router pertama kali setelah DOM dipastikan siap
-        if (document.readyState === 'complete') {
-            this.router();
+        // 3. JANGAN panggil router langsung jika DOM belum siap
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.router());
         } else {
-            window.addEventListener('load', () => this.router());
+            this.router();
         }
     },
 
@@ -45,20 +46,19 @@ const App = {
         
         if (!root) return;
 
-        // --- CLEANUP STATE ---
-        if (typeof this.closePresence === 'function') this.closePresence();
-        if (typeof this.closeLogoutModal === 'function') this.closeLogoutModal();
+        // --- 1. CLEANUP ---
         if (this.timer) clearInterval(this.timer);
+        // Pastikan modal tertutup saat pindah halaman
+        const overlays = document.querySelectorAll('[id$="-overlay"]');
+        overlays.forEach(ov => { ov.style.visibility = 'hidden'; ov.style.opacity = '0'; });
 
-        let pageFile = 'pages/login.html';
+        let pageFile = '';
         let isFullPage = false; 
 
-        // --- LOGIKA PROTEKSI RUTE ---
+        // --- 2. LOGIKA RUTE (DIPERKETAT) ---
         if (hash === '#login') {
             if (this.user) {
-                // Gunakan replace agar tidak menumpuk history stack
-                const target = (this.user.Role.toLowerCase() === 'admin') ? '#admin' : '#dashboard';
-                window.location.replace(target);
+                window.location.replace(this.user.Role.toLowerCase() === 'admin' ? '#admin' : '#dashboard');
                 return;
             }
             pageFile = 'pages/login.html';
@@ -66,77 +66,55 @@ const App = {
         } 
         else if (hash === '#dashboard') {
             if (!this.user) { window.location.replace('#login'); return; }
-            if (this.user.Role.toLowerCase() === 'admin') { window.location.replace('#admin'); return; }
             pageFile = 'pages/dashboard-user.html';
         } 
         else if (hash === '#admin') {
             if (!this.user) { window.location.replace('#login'); return; }
-            if (this.user.Role.toLowerCase() !== 'admin') { 
-                pageFile = 'pages/error.html'; 
-                isFullPage = true; 
-            } else { 
-                pageFile = 'pages/dashboard-admin.html'; 
-            }
-        }
-        else if (hash === '#download') {
-            pageFile = 'pages/download.html';
-            isFullPage = true;
+            pageFile = 'pages/dashboard-admin.html';
         }
         else {
             pageFile = 'pages/error.html';
             isFullPage = true;
         }
 
-        // --- PROSES RENDER ---
+        // --- 3. EKSEKUSI RENDER (BAGIAN KRUSIAL) ---
         try {
-            // Kontrol background merah SEBELUM fetch agar tidak blank saat loading
+            // Sembunyikan konten lama agar tidak "ghosting"
+            root.style.opacity = '0';
+
+            // Paksa Background Merah Sesuai Halaman (Hilangkan Blank)
             if (bgRed) {
                 bgRed.style.display = isFullPage ? 'none' : 'block';
             }
 
-            root.style.opacity = '0'; // Hide content during load
-
+            console.log("Fetching page:", pageFile);
             const res = await fetch(pageFile);
-            if (!res.ok) throw new Error(`Halaman tidak ditemukan`);
+            if (!res.ok) throw new Error("File tidak ditemukan");
             
             const html = await res.text();
             root.innerHTML = html;
 
-            // Trigger Lucide Icons
+            // Pastikan icon dirender ulang
             if (window.lucide) lucide.createIcons();
             
-            // Tampilkan kembali
-            root.style.transition = 'opacity 0.3s ease';
-            root.style.opacity = '1';
+            // Tampilkan kembali secara halus
+            setTimeout(() => { root.style.opacity = '1'; }, 50);
 
-            // --- INISIALISASI DATA HALAMAN ---
+            // --- 4. INISIALISASI DATA ---
             if (!isFullPage && this.user) {
-                // Gunakan requestAnimationFrame agar browser selesai render DOM dulu
-                requestAnimationFrame(async () => {
+                // Tunggu sebentar agar elemen di dashboard-user.html benar-benar masuk DOM
+                setTimeout(async () => {
                     this.initPageData();
-                    
-                    if (hash === '#dashboard') {
-                        await this.syncData();
-                    }
-                    
-                    if (hash === '#admin' && typeof Admin !== 'undefined') {
-                        Admin.init();
-                    }
-                    
+                    if (hash === '#dashboard') await this.syncData();
+                    if (hash === '#admin' && typeof Admin !== 'undefined') Admin.init();
                     this.startClock();
-                });
+                }, 100);
             }
         } catch (e) {
             console.error("Router Error:", e);
             if (bgRed) bgRed.style.display = 'none';
+            root.innerHTML = `<div class="p-20 text-center font-bold text-red-500">Gagal Memuat Halaman.<br><small>${e.message}</small></div>`;
             root.style.opacity = '1';
-            root.innerHTML = `
-                <div class="min-h-screen flex flex-col items-center justify-center p-10 text-center">
-                    <h1 class="text-2xl font-black text-gray-800">ERROR</h1>
-                    <p class="text-gray-500 mt-2">${e.message}</p>
-                    <button onclick="window.location.replace('#login')" class="mt-8 bg-red-600 text-white px-10 py-4 rounded-2xl font-bold uppercase tracking-widest shadow-xl">Kembali</button>
-                </div>
-            `;
         }
     },
   
