@@ -13,7 +13,13 @@
         .header-red-section {
             position: fixed; top: 0; left: 0; right: 0; height: 35vh;
             background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
-            border-bottom-left-radius: 50px; border-bottom-right-radius: 50px; z-index: -1;
+            border-bottom-left-radius: 50px; border-bottom-right-radius: 50px; 
+            z-index: -1; /* Pastikan ini tetap -1 */
+        }
+        #app-content {
+            position: relative;
+            z-index: 10; /* Pastikan konten berada di depan background */
+            min-height: 100vh;
         }
     </style>
     <script>
