@@ -43,6 +43,8 @@ const App = {
         const hash = window.location.hash || '#login';
         const root = document.getElementById('app-content');
         const bgRed = document.querySelector('.header-red-section');
+
+        if (bgRed) bgRed.style.display = 'block';
         
         if (!root) return;
 
