@@ -74,7 +74,14 @@
                 </button>
                 <h1 id="admin-page-title" style="margin: 0; font-size: 18px; font-weight: 900; color: #1a1a1a;">Data Pegawai</h1>
             </div>
-            <div style="width: 35px; height: 35px; background: var(--red-panda); border-radius: 10px; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;">A</div>
+            
+            <button onclick="App.switchPage('profile-edit')" style="display: flex; align-items: center; gap: 12px; background: none; border: none; cursor: pointer; padding: 5px; border-radius: 12px; transition: 0.2s;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='none'">
+                <div style="text-align: right; line-height: 1.2;">
+                    <div class="user-name" style="font-size: 12px; font-weight: 900; color: #333;">Admin SiPanda</div>
+                    <div style="font-size: 10px; color: var(--red-panda); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Edit Profil <i data-lucide="chevron-right" style="width: 10px; display: inline-block; vertical-align: middle;"></i></div>
+                </div>
+                <div style="width: 38px; height: 38px; background: linear-gradient(135deg, var(--red-panda), #ff4d4d); border-radius: 12px; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; box-shadow: 0 4px 10px rgba(204,43,43,0.2);">A</div>
+            </button>
         </header>
 
         <section class="content-scroll" style="flex:1; overflow-y:auto; padding: 25px;">
