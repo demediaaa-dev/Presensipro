@@ -451,6 +451,17 @@ const Admin = {
         this.loadTableData();
     },
 
+    async init() {
+        // 1. Ambil data user dulu sebagai referensi nama (Background task)
+        const resUser = await API.call({ action: "admin_get_data", sheet: 'users' });
+        if (resUser.success) {
+            this.cache['users'] = resUser;
+        }
+        
+        // 2. Baru load table utama
+        this.loadTableData();
+    },
+    
     // 2. Fungsi Ambil Data (SKELETON)
     async loadTableData() {
         const body = document.getElementById('admin-table-body');
