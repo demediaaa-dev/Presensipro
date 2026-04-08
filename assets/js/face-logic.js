@@ -19,40 +19,40 @@ const FaceService = {
         }
     },
 
-// Update di face-logic.js
     async initCamera() {
         await this.loadModels();
         const video = document.getElementById('video');
-        if (!video) {
-            console.error("Elemen video tidak ditemukan di DOM!");
-            return;
+        if (!video) return console.error("Elemen video tidak ditemukan!");
+    
+        // Stop stream lama jika masih ada (mencegah tabrakan)
+        if (video.srcObject) {
+            this.stopCamera();
         }
     
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ 
                 video: { 
                     width: { ideal: 640 }, 
-                    height: { ideal: 480 }, 
+                    height: { ideal: 640 }, // Gunakan 1:1 agar pas dengan frame bulat/kotak
                     facingMode: "user" 
                 } 
             });
             
             video.srcObject = stream;
             
-            // Paksa Play
-            try {
-                await video.play();
-                console.log("Stream kamera berhasil dijalankan");
-            } catch (e) {
-                console.warn("Autoplay dicegah, mencoba play manual...", e);
-                video.play();
-            }
+            // Gunakan event listener untuk memastikan video dimainkan setelah data dimuat
+            video.onloadedmetadata = () => {
+                video.play().catch(e => console.error("Gagal play video:", e));
+            };
     
         } catch (err) {
-            console.error("Error getUserMedia:", err);
-            App.showToast("Kamera error: " + err.name, "error");
+            console.error("Error akses kamera:", err);
+            let msg = "Kamera tidak diizinkan atau tidak ditemukan.";
+            if (err.name === 'NotAllowedError') msg = "Izin kamera ditolak browser.";
+            App.showToast(msg, "error");
         }
     },
+    
     stopCamera() {
         const video = document.getElementById('video');
         if (video && video.srcObject) {
