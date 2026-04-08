@@ -1,324 +1,445 @@
 const App = {
-    user: null,
-    isWithinRadius: false,
-    attendanceStatus: 'none',
-    hasFaceData: false,
-    timer: null,
-    watchId: null, // Untuk menyimpan ID Geolocation
-    officeLocation: null,
+    user: null,
+    isWithinRadius: false,
+    attendanceStatus: 'none',
+    hasFaceData: false,
+    timer: null,
+    officeLocation: null,
 
-    async init() {
-        const saved = localStorage.getItem('sipanda_session');
-        if (saved) {
-            this.user = JSON.parse(saved);
-            // Jika user sudah login tapi di halaman login, lempar ke dashboard
-            if (!window.location.hash || window.location.hash === '#login') {
-                window.location.hash = (this.user.Role.toLowerCase() === 'admin') ? '#admin' : '#dashboard';
-            }
-        } else {
-            window.location.hash = '#login';
-        }
+    async init() {
+        const saved = localStorage.getItem('sipanda_session');
+        if (saved) {
+            this.user = JSON.parse(saved);
+            if (!window.location.hash || window.location.hash === '#login') {
+                window.location.hash = '#dashboard';
+            }
+        } else {
+            window.location.hash = '#login';
+        }
 
-        window.addEventListener('hashchange', () => this.router());
-        this.router();
-    },
+        window.addEventListener('hashchange', () => this.router());
+        this.router();
+    },
 
-    async router() {
-        const hash = window.location.hash || '#login';
-        const root = document.getElementById('app-content');
-        if (!root) return;
-    
-        let pageFile = 'pages/login.html';
-        if (hash === '#dashboard') pageFile = 'pages/dashboard-user.html';
-        if (hash === '#history') pageFile = 'pages/history.html';
-        if (hash === '#admin') pageFile = 'pages/dashboard-admin.html';
-    
-        try {
-            const res = await fetch(pageFile);
-            if (!res.ok) throw new Error("Gagal mengambil file halaman");
-            
-            const html = await res.text();
-            root.innerHTML = html;
-    
-            // Bersihkan timer/watch sebelumnya jika pindah halaman
-            if (this.timer) clearInterval(this.timer);
-            if (this.watchId) navigator.geolocation.clearWatch(this.watchId);
+// BAGIAN ROUTER YANG PERLU DIPERBAIKI
+    async router() {
+        const hash = window.location.hash || '#login';
+        const root = document.getElementById('app-content');
+        if (!root) return; // Guard clause jika element root tidak ada
+    
+        let pageFile = 'pages/login.html';
+        if (hash === '#dashboard') pageFile = 'pages/dashboard-user.html';
+        if (hash === '#history') pageFile = 'pages/history.html';
+        if (hash === '#admin') pageFile = 'pages/dashboard-admin.html';
+    
+        try {
+            const res = await fetch(pageFile);
+            if (!res.ok) throw new Error("Gagal mengambil file halaman");
+            
+            const html = await res.text();
+            root.innerHTML = html; // 1. Masukkan HTML dulu
+    
+            // 2. Baru jalankan logika setelah elemen masuk ke DOM
+            if (hash === '#admin') {
+                Admin.init(); 
+            }
+    
+            if (hash !== '#login') {
+                await this.syncData();
+                this.initPageData();
+            }
+            
+            lucide.createIcons();
+            this.startClock();
+        } catch (e) { 
+            console.error("Router Error:", e);
+            root.innerHTML = `<div class="p-10 text-center">Terjadi kesalahan saat memuat halaman.</div>`;
+        }
+    },
 
-            if (hash === '#admin') {
-                Admin.init(); 
-            }
-    
-            if (hash !== '#login') {
-                await this.syncData();
-                this.initPageData();
-                this.startClock();
-                this.checkLocation(); // Mulai tracking GPS hanya di luar login
-            }
-            
-            if (window.lucide) lucide.createIcons();
-        } catch (e) { 
-            console.error("Router Error:", e);
-            root.innerHTML = `<div class="p-10 text-center">Terjadi kesalahan saat memuat halaman.</div>`;
-        }
-    },
 
-    showToast(message, type = 'info') {
-        const container = document.getElementById('toast-container');
-        if (!container) return;
+    showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        const color = type === 'success' ? 'bg-green-600' : (type === 'error' ? 'bg-red-600' : 'bg-gray-800');
+        const icon = type === 'success' ? 'check-circle' : (type === 'error' ? 'x-circle' : 'info');
 
-        const toast = document.createElement('div');
-        const color = type === 'success' ? 'bg-green-600' : (type === 'error' ? 'bg-red-600' : 'bg-gray-800');
-        const icon = type === 'success' ? 'check-circle' : (type === 'error' ? 'x-circle' : 'info');
+        toast.className = `${color} text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 transform transition-all duration-500 translate-y-[-20px] opacity-0`;
+        toast.innerHTML = `
+            <i data-lucide="${icon}" class="w-5 h-5"></i>
+            <span class="text-xs font-bold uppercase tracking-wider">${message}</span>
+        `;
 
-        toast.className = `${color} text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 transform transition-all duration-500 translate-y-[-20px] opacity-0 z-[9999]`;
-        toast.innerHTML = `
-            <i data-lucide="${icon}" class="w-5 h-5"></i>
-            <span class="text-xs font-bold uppercase tracking-wider">${message}</span>
-        `;
+        container.appendChild(toast);
+        lucide.createIcons();
 
-        container.appendChild(toast);
-        if (window.lucide) lucide.createIcons();
+        // Trigger animasi masuk
+        setTimeout(() => {
+            toast.classList.remove('translate-y-[-20px]', 'opacity-0');
+        }, 10);
 
-        setTimeout(() => toast.classList.remove('translate-y-[-20px]', 'opacity-0'), 10);
-        setTimeout(() => {
-            toast.classList.add('translate-y-[-20px]', 'opacity-0');
-            setTimeout(() => toast.remove(), 500);
-        }, 3000);
-    },
+        // Hapus toast setelah 3 detik
+        setTimeout(() => {
+            toast.classList.add('translate-y-[-20px]', 'opacity-0');
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
+    },
 
-    togglePassword() {
-        const input = document.getElementById('password');
-        const icon = document.getElementById('eye-icon');
-        if (!input || !icon) return;
+    // --- TOGGLE PASSWORD ---
+    togglePassword() {
+        const input = document.getElementById('password');
+        const icon = document.getElementById('eye-icon');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.setAttribute('data-lucide', 'eye-off');
+        } else {
+            input.type = 'password';
+            icon.setAttribute('data-lucide', 'eye');
+        }
+        lucide.createIcons();
+    },
 
-        const isPass = input.type === 'password';
-        input.type = isPass ? 'text' : 'password';
-        icon.setAttribute('data-lucide', isPass ? 'eye-off' : 'eye');
-        if (window.lucide) lucide.createIcons();
-    },
+    openLogoutModal() {
+        const overlay = document.getElementById('logout-overlay');
+        const sheet = document.getElementById('logout-sheet');
+        overlay.style.visibility = 'visible';
+        overlay.style.opacity = '1';
+        sheet.style.transform = 'translateY(0)';
+        this.initSwipeToDismiss(sheet, () => this.closeLogoutModal());
+    },
 
-    // --- MODAL CONTROL (REUSABLE) ---
-    toggleModal(overlayId, sheetId, show) {
-        const overlay = document.getElementById(overlayId);
-        const sheet = document.getElementById(sheetId);
-        if (!overlay || !sheet) return;
+    closeLogoutModal() {
+        const overlay = document.getElementById('logout-overlay');
+        const sheet = document.getElementById('logout-sheet');
+        overlay.style.opacity = '0';
+        overlay.style.visibility = 'hidden';
+        sheet.style.transform = 'translateY(100%)';
+    },
 
-        if (show) {
-            overlay.style.visibility = 'visible';
-            overlay.style.opacity = '1';
-            sheet.style.transform = 'translateY(0)';
-            this.initSwipeToDismiss(sheet, () => this.toggleModal(overlayId, sheetId, false));
-        } else {
-            overlay.style.opacity = '0';
-            overlay.style.visibility = 'hidden';
-            sheet.style.transform = 'translateY(100%)';
-        }
-    },
+    confirmLogout() {
+        this.showToast("Berhasil keluar", "info");
+        localStorage.removeItem('sipanda_session');
+        this.user = null;
+        this.closeLogoutModal();
+        setTimeout(() => window.location.hash = '#login', 500);
+    },
 
-    openLogoutModal() { this.toggleModal('logout-overlay', 'logout-sheet', true); },
-    closeLogoutModal() { this.toggleModal('logout-overlay', 'logout-sheet', false); },
+    // --- LOGIKA SWIPE TO DISMISS ---
+    initSwipeToDismiss(element, closeCallback) {
+        let startY = 0;
+        let currentY = 0;
 
-    confirmLogout() {
-        this.showToast("Berhasil keluar", "info");
-        localStorage.removeItem('sipanda_session');
-        this.user = null;
-        this.closeLogoutModal();
-        setTimeout(() => window.location.hash = '#login', 500);
-    },
+        element.addEventListener('touchstart', (e) => {
+            startY = e.touches[0].clientY;
+        }, { passive: true });
 
-    initSwipeToDismiss(element, closeCallback) {
-        let startY = 0;
-        let currentY = 0;
+        element.addEventListener('touchmove', (e) => {
+            currentY = e.touches[0].clientY;
+            const diff = currentY - startY;
+            if (diff > 0) {
+                element.style.transform = `translateY(${diff}px)`;
+                element.style.transition = 'none'; // Matikan transisi saat menyeret
+            }
+        }, { passive: true });
 
-        element.ontouchstart = (e) => { startY = e.touches[0].clientY; };
-        element.ontouchmove = (e) => {
-            currentY = e.touches[0].clientY;
-            const diff = currentY - startY;
-            if (diff > 0) {
-                element.style.transform = `translateY(${diff}px)`;
-                element.style.transition = 'none';
-            }
-        };
-        element.ontouchend = () => {
-            const diff = currentY - startY;
-            element.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-            if (diff > 150) closeCallback();
-            else element.style.transform = 'translateY(0)';
-            startY = 0; currentY = 0;
-        };
-    },
+        element.addEventListener('touchend', () => {
+            const diff = currentY - startY;
+            element.style.transition = 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+            
+            if (diff > 150) { // Jika diseret lebih dari 150px, tutup
+                closeCallback();
+            } else {
+                element.style.transform = 'translateY(0)'; // Kembalikan ke posisi awal
+            }
+            startY = 0; currentY = 0;
+        });
+    },
 
-    async handleLogin() {
-        const u = document.getElementById('username')?.value;
-        const p = document.getElementById('password')?.value;
-        const btn = document.getElementById('btn-login');
-        const loader = document.getElementById('btn-loader');
-        const btnText = document.getElementById('btn-text');
+    // --- FUNGSI LOGIN ---
+    async handleLogin() {
+        // HAPUS pengecekan !App.user di sini, karena saat login App.user memang masih null
+        
+        const u = document.getElementById('username').value;
+        const p = document.getElementById('password').value;
+        const btn = document.getElementById('btn-login');
+        const loader = document.getElementById('btn-loader');
+        const btnText = document.getElementById('btn-text');
 
-        if (!u || !p) return this.showToast("Isi semua data!", "error");
+        if (!u || !p) return this.showToast("Isi semua data!", "error");
 
-        btn.disabled = true;
-        loader?.classList.remove('hidden');
-        if (btnText) btnText.innerText = "Memproses...";
+        // Loading State On
+        btn.disabled = true;
+        if (loader) loader.classList.remove('hidden');
+        if (btnText) btnText.innerText = "Memproses...";
 
-        try {
-            const res = await API.call({ action: "login", id: u, pass: p });
-            if (res.success) {
-                this.showToast(`Selamat datang, ${res.data.name}!`, "success");
-                this.user = { id: res.data.id, Name: res.data.name, Role: res.data.role };
-                localStorage.setItem('sipanda_session', JSON.stringify(this.user));
-                
-                setTimeout(() => {
-                    window.location.hash = (this.user.Role.toLowerCase() === 'admin') ? '#admin' : '#dashboard';
-                }, 1000);
-            } else {
-                this.showToast(res.message, "error");
-            }
-        } catch (e) {
-            this.showToast("Masalah koneksi!", "error");
-        } finally {
-            btn.disabled = false;
-            loader?.classList.add('hidden');
-            if (btnText) btnText.innerText = "Masuk Sistem";
-        }
-    },
+        try {
+            // Pastikan properti yang dikirim adalah 'id' dan 'pass' sesuai Code.gs terbaru
+            const res = await API.call({ 
+                action: "login", 
+                id: u, 
+                pass: p 
+            });
 
-    async syncData() {
-        if (!this.user?.id) return;
-        try {
-            const res = await API.call({ action: "get_status", user_id: this.user.id });
-            if (res.success) {
-                this.attendanceStatus = res.status;
-                this.hasFaceData = res.hasFaceData;
-                this.officeLocation = res.location;
-                
-                const formatTime = (t) => (t && t !== "") ? t : "-- : --";
-                const elIn = document.getElementById('time-in');
-                const elOut = document.getElementById('time-out');
-                if (elIn) elIn.innerText = formatTime(res.timeIn);
-                if (elOut) elOut.innerText = formatTime(res.timeOut);
-                
-                this.updateDashboardUI();
-            }
-        } catch (e) { console.error("Sync failed", e); }
-    },
+            if (res.success) {
+                this.showToast(`Selamat datang, ${res.data.name}!`, "success");
+                
+                // Simpan ke variabel App
+                this.user = { 
+                    id: res.data.id, 
+                    Name: res.data.name, 
+                    Role: res.data.role 
+                };
+                
+                // Simpan ke LocalStorage agar tidak logout saat refresh
+                localStorage.setItem('sipanda_session', JSON.stringify(this.user));
+                
+                setTimeout(() => {
+                    window.location.hash = (this.user.Role.toLowerCase() === 'admin') ? '#admin' : '#dashboard';
+                }, 1000);
+            } else {
+                this.showToast(res.message, "error");
+            }
+        } catch (e) { 
+            console.error("Login Error:", e);
+            this.showToast("Masalah koneksi!", "error");
+        } finally {
+            // Loading State Off
+            btn.disabled = false;
+            if (loader) loader.classList.add('hidden');
+            if (btnText) btnText.innerText = "Masuk Sistem";
+        }
+    },
 
-    checkLocation() {
-        if (!navigator.geolocation) return;
-        this.watchId = navigator.geolocation.watchPosition((pos) => {
-            if (!this.officeLocation) return;
-            const distance = this.calculateDistance(
-                pos.coords.latitude, pos.coords.longitude, 
-                Number(this.officeLocation.lat), Number(this.officeLocation.lng)
-            );
+    async syncData() {
+        if (!this.user || !this.user.id) return;
+        try {
+            const res = await API.call({ action: "get_status", user_id: this.user.id });
+            if (res.success) {
+                this.attendanceStatus = res.status;
+                this.hasFaceData = res.hasFaceData;
+                this.officeLocation = res.location;
+                this.checkLocation();
+                this.updateDashboardUI();
 
-            this.isWithinRadius = distance <= this.officeLocation.radius;
-            
-            const locStatus = document.getElementById('radius-text');
-            const locDot = document.getElementById('radius-dot');
+                const elIn = document.getElementById('time-in');
+                const elOut = document.getElementById('time-out');
 
-            if (locStatus && locDot) {
-                locStatus.innerText = this.isWithinRadius ? "DALAM RADIUS" : "LUAR LOKASI";
-                locStatus.className = `text-xs font-bold uppercase ${this.isWithinRadius ? 'text-green-600' : 'text-red-600'}`;
-                locDot.className = `w-2 h-2 rounded-full ${this.isWithinRadius ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`;
-            }
-            this.updateDashboardUI();
-        }, null, { enableHighAccuracy: true });
-    },
+                // Fungsi pembantu untuk memotong jam jika formatnya kepanjangan
+                const formatTime = (timeStr) => {
+                    if (!timeStr || timeStr === "") return "-- : --";
+                    if (timeStr.includes('T')) { // Jika masih format ISO
+                        const d = new Date(timeStr);
+                        return d.getHours().toString().padStart(2, '0') + ":" + 
+                            d.getMinutes().toString().padStart(2, '0');
+                    }
+                    return timeStr; // Jika sudah format "HH:mm"
+                };
 
-    calculateDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371e3;
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                  Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
-                  Math.sin(dLon/2) * Math.sin(dLon/2);
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    },
+                if (elIn) elIn.innerText = formatTime(res.timeIn);
+                if (elOut) elOut.innerText = formatTime(res.timeOut);
+            }
+        } catch (e) { console.error("Sync failed", e); }
+    },
 
-    initPageData() {
-        if (!this.user) return;
-        document.querySelectorAll('.display-name').forEach(el => el.innerText = this.user.Name);
-        document.querySelectorAll('.display-role').forEach(el => el.innerText = this.user.Role);
-    },
+    checkLocation() {
+        if (!navigator.geolocation) return;
 
-    updateDashboardUI() {
-        const regCard = document.getElementById('face-reg-card');
-        const btnPresensi = document.getElementById('btn-main-presence');
-        const labelPresensi = document.getElementById('label-main-presence');
+        navigator.geolocation.watchPosition((pos) => {
+            const userLat = pos.coords.latitude;
+            const userLng = pos.coords.longitude;
+            
+            if (this.officeLocation) {
+                const distance = this.calculateDistance(
+                    userLat, userLng, 
+                    Number(this.officeLocation.lat), 
+                    Number(this.officeLocation.lng)
+                );
 
-        if (regCard) {
-            this.hasFaceData ? regCard.classList.add('hidden') : regCard.classList.remove('hidden');
-        }
+                this.isWithinRadius = distance <= this.officeLocation.radius;
+                
+                // TAMBAHKAN LOG INI
+                console.log("Posisi User:", userLat, userLng);
+                console.log("Posisi Kantor:", this.officeLocation.lat, this.officeLocation.lng);
+                console.log("Jarak (Meter):", distance);
+                console.log("Radius Izin (Meter):", this.officeLocation.radius);
 
-        if (btnPresensi && labelPresensi) {
-            if (this.hasFaceData && this.isWithinRadius) {
-                if (this.attendanceStatus === 'out') {
-                    labelPresensi.innerText = "SELESAI";
-                    btnPresensi.className = "w-16 h-16 rounded-full flex flex-col items-center justify-center bg-gray-200 text-gray-400";
-                    btnPresensi.style.pointerEvents = "none";
-                } else {
-                    const isCheckIn = this.attendanceStatus !== 'in';
-                    labelPresensi.innerText = isCheckIn ? 'MASUK' : 'PULANG';
-                    btnPresensi.className = `w-16 h-16 rounded-full flex flex-col items-center justify-center border-4 border-white shadow-xl transition active:scale-90 ${isCheckIn ? 'bg-indigo-600' : 'bg-red-600'}`;
-                    btnPresensi.style.pointerEvents = "auto";
-                    btnPresensi.style.opacity = "1";
-                }
-            } else {
-                labelPresensi.innerText = "OFFSIDE"; 
-                btnPresensi.className = "w-16 h-16 rounded-full flex flex-col items-center justify-center bg-gray-300";
-                btnPresensi.style.pointerEvents = "none";
-                btnPresensi.style.opacity = "0.5";
-            }
-        }
-    },
+                // Ambil elemen HTML berdasarkan ID yang baru
+                const locStatus = document.getElementById('radius-text');
+                const locDot = document.getElementById('radius-dot');
 
-    openCameraModal(mode = 'presence') {
-        const title = document.getElementById('camera-title');
-        const btnText = document.getElementById('btn-text-camera');
-        
-        if (title) title.innerText = (mode === 'register') ? "Registrasi Wajah" : "Verifikasi Presensi";
-        if (btnText) btnText.innerText = (mode === 'register') ? "AMBIL FOTO" : "SCAN SEKARANG";
+                if (locStatus && locDot) {
+                    if (this.isWithinRadius) {
+                        locStatus.innerText = "DALAM RADIUS";
+                        locStatus.className = "text-xs font-bold uppercase text-green-600";
+                        locDot.className = "w-2 h-2 bg-green-500 rounded-full animate-pulse";
+                    } else {
+                        locStatus.innerText = "LUAR LOKASI PRESENSI";
+                        locStatus.className = "text-xs font-bold uppercase text-red-600";
+                        locDot.className = "w-2 h-2 bg-red-500 rounded-full";
+                    }
+                }
+                
+                this.updateDashboardUI();
+            }
+        }, (err) => {
+            console.error("Gagal ambil GPS");
+        }, { enableHighAccuracy: true });
+    },
 
-        this.toggleModal('modal-overlay', 'presence-sheet', true);
-        if (window.FaceService) {
-            FaceService.initCamera(mode);
-            const btnAction = document.getElementById('btn-camera-action');
-            if (btnAction) btnAction.onclick = () => FaceService.handleAction();
-        }
-    },
+    // Rumus Haversine untuk hitung jarak (Meter)
+    calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; // Radius bumi dalam meter
+        const φ1 = lat1 * Math.PI / 180;
+        const φ2 = lat2 * Math.PI / 180;
+        const Δφ = (lat2 - lat1) * Math.PI / 180;
+        const Δλ = (lon2 - lon1) * Math.PI / 180;
 
-    closePresence() {
-        this.toggleModal('modal-overlay', 'presence-sheet', false);
-        if (window.FaceService) FaceService.stopCamera();
-    },
+        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                  Math.cos(φ1) * Math.cos(φ2) *
+                  Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-    startPresence() { 
-        if (this.attendanceStatus === 'in') this.openConfirmOutModal();
-        else if (this.attendanceStatus === 'none') this.openCameraModal('presence');
-    },
-    
-    openConfirmOutModal() { this.toggleModal('confirm-out-overlay', 'confirm-out-sheet', true); },
-    closeConfirmOutModal() { this.toggleModal('confirm-out-overlay', 'confirm-out-sheet', false); },
+        return R * c; 
+    },
 
-    confirmOut() {
-        this.closeConfirmOutModal();
-        this.openCameraModal('presence');
-    },
+    initPageData() {
+        if (!this.user) return;
+        document.querySelectorAll('.display-name').forEach(el => el.innerText = this.user.Name);
+        document.querySelectorAll('.display-role').forEach(el => el.innerText = this.user.Role);
+        if (window.location.hash === '#dashboard') this.updateDashboardUI();
+    },
 
-    startSelfRegistration() { 
-        Admin.currentRegID = this.user.id;
-        this.openCameraModal('register'); 
-    },
-    
-    startClock() {
-        const el = document.getElementById('clock');
-        if (!el) return;
-        this.timer = setInterval(() => {
-            el.innerText = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + " WIB";
-        }, 1000);
-    }
+    updateDashboardUI() {
+        const regCard = document.getElementById('face-reg-card');
+        const btnPresensi = document.getElementById('btn-main-presence');
+        const labelPresensi = document.getElementById('label-main-presence');
+
+        if (regCard) {
+            // Jika sudah punya data wajah, sembunyikan kartu (tambah class hidden)
+            if (this.hasFaceData) {
+                regCard.classList.add('hidden');
+            } else {
+                regCard.classList.remove('hidden');
+            }
+        }
+
+        // Update tombol presensi utama
+        if (btnPresensi && labelPresensi) {
+            if (this.hasFaceData && this.isWithinRadius) {
+                const activeColor = this.attendanceStatus === 'in' ? 'bg-indigo-600' : 'bg-red-600';
+                
+                // UPDATE TEKS DI SINI
+                labelPresensi.innerText = this.attendanceStatus === 'in' ? 'PULANG' : 'MASUK';
+                
+                btnPresensi.className = `w-16 h-16 rounded-full flex flex-col items-center justify-center border-4 border-white shadow-xl transition active:scale-90 ${activeColor}`;
+                btnPresensi.style.pointerEvents = "auto";
+                btnPresensi.style.opacity = "1";
+            } else {
+                // Jika di luar radius atau belum ada data wajah
+                labelPresensi.innerText = "OFFSIDE"; 
+                btnPresensi.className = "w-16 h-16 rounded-full flex flex-col items-center justify-center bg-gray-300";
+                btnPresensi.style.pointerEvents = "none";
+                btnPresensi.style.opacity = "0.5";
+            }
+        }
+    },
+
+    // --- MANAJEMEN MODAL KAMERA ---
+    openCameraModal(mode = 'presence') {
+        const overlay = document.getElementById('modal-overlay');
+        const sheet = document.getElementById('presence-sheet');
+        const btn = document.getElementById('btn-camera-action');
+        const title = document.getElementById('camera-title');
+
+        overlay.style.visibility = 'visible';
+        overlay.style.opacity = '1';
+        sheet.style.transform = 'translateY(0)';
+
+        // Set Judul & Teks Tombol
+        title.innerText = (mode === 'register') ? "Registrasi Wajah" : "Verifikasi Presensi";
+        document.getElementById('btn-text-camera').innerText = (mode === 'register') ? "AMBIL FOTO WAJAH" : "SCAN SEKARANG";
+
+        // Panggil init kamera
+        FaceService.initCamera(mode);
+
+        // Pasang Event Klik
+        btn.onclick = () => FaceService.handleAction();
+    },
+
+    closePresence() {
+        const overlay = document.getElementById('modal-overlay');
+        const sheet = document.getElementById('presence-sheet');
+        if (overlay) {
+            overlay.style.opacity = '0';
+            overlay.style.visibility = 'hidden';
+        }
+        if (sheet) sheet.style.transform = 'translateY(100%)';
+        FaceService.stopCamera();
+    },
+
+    startPresence() { 
+        // Jika status 'in', berarti user mau absen PULANG
+        if (this.attendanceStatus === 'in') {
+            this.openConfirmOutModal();
+        } else if (this.attendanceStatus === 'out') {
+            // Jika sudah absen masuk & pulang (status 'out'), cegah absen lagi
+            this.showToast("Anda sudah menyelesaikan absensi hari ini", "info");
+        } else {
+            // Jika status 'none', langsung buka kamera untuk absen MASUK
+            this.openCameraModal('presence'); 
+        }
+    },
+    
+    openConfirmOutModal() {
+        const overlay = document.getElementById('confirm-out-overlay');
+        const sheet = document.getElementById('confirm-out-sheet');
+        if (!overlay || !sheet) return;
+
+        overlay.style.visibility = 'visible';
+        overlay.style.opacity = '1';
+        sheet.style.transform = 'translateY(0)';
+        this.initSwipeToDismiss(sheet, () => this.closeConfirmOutModal());
+    },
+
+    closeConfirmOutModal() {
+        const overlay = document.getElementById('confirm-out-overlay');
+        const sheet = document.getElementById('confirm-out-sheet');
+        if (overlay) {
+            overlay.style.opacity = '0';
+            overlay.style.visibility = 'hidden';
+        }
+        if (sheet) sheet.style.transform = 'translateY(100%)';
+    },
+
+    confirmOut() {
+        this.closeConfirmOutModal();
+        // Lanjut ke kamera untuk verifikasi wajah sebelum pulang
+        this.openCameraModal('presence');
+    },
+
+    startSelfRegistration() { 
+        Admin.currentRegID = this.user.id; // Set ID user saat ini untuk didaftar
+        this.openCameraModal('register'); 
+    },
+    
+    startClock() {
+        const el = document.getElementById('clock');
+        if (el) {
+            if (this.timer) clearInterval(this.timer);
+            this.timer = setInterval(() => {
+                el.innerText = new Date().toLocaleTimeString('id-ID') + " WIB";
+            }, 1000);
+        }
+    },
+
+    logout() {
+        localStorage.removeItem('sipanda_session');
+        this.user = null;
+        window.location.hash = '#login';
+    }
 };
+
+
 
 // --- LOGIKA ADMIN ---
 const Admin = {
