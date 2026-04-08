@@ -2,6 +2,8 @@ const App = {
     user: null,
     isWithinRadius: false,
     attendanceStatus: 'none',
+    lastTimeIn: '-- : --',  // Tambahkan ini
+    lastTimeOut: '-- : --', // Tambahkan ini
     hasFaceData: false,
     timer: null,
     officeLocation: null,
@@ -31,6 +33,7 @@ const App = {
         if (hash === '#dashboard') pageFile = 'pages/dashboard-user.html';
         if (hash === '#history') pageFile = 'pages/history.html';
         if (hash === '#admin') pageFile = 'pages/dashboard-admin.html';
+        
     
         try {
             const res = await fetch(pageFile);
@@ -313,6 +316,8 @@ const App = {
         const regCard = document.getElementById('face-reg-card');
         const btnPresensi = document.getElementById('btn-main-presence');
         const labelPresensi = document.getElementById('label-main-presence');
+        const elIn = document.getElementById('time-in');
+        const elOut = document.getElementById('time-out');
 
         if (regCard) {
             // Jika sudah punya data wajah, sembunyikan kartu (tambah class hidden)
@@ -342,6 +347,20 @@ const App = {
                 btnPresensi.style.opacity = "0.5";
             }
         }
+
+        const formatTime = (timeStr) => {
+            if (!timeStr || timeStr === "" || timeStr === "-") return "-- : --";
+            // Jika format ISO 1899-12-30T00:37...
+            if (typeof timeStr === 'string' && timeStr.includes('T')) {
+                const d = new Date(timeStr);
+                return d.getHours().toString().padStart(2, '0') + ":" + 
+                       d.getMinutes().toString().padStart(2, '0');
+            }
+            return timeStr; // Jika sudah format HH:mm
+        };
+    
+        if (elIn) elIn.innerText = formatTime(this.lastTimeIn); 
+        if (elOut) elOut.innerText = formatTime(this.lastTimeOut);
     },
 
     // --- MANAJEMEN MODAL KAMERA ---
