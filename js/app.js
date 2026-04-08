@@ -428,94 +428,81 @@ const App = {
 // --- LOGIKA ADMIN & REGISTRASI ---
 const Admin = {
     currentTab: 'users',
-    cache: {}, // Tempat menyimpan data sementara agar tidak load ulang
+    cache: {},
+    currentPage: 1,
+    rowsPerPage: 10, // Ubah angka ini untuk jumlah baris per halaman
 
-    toggleSidebar() {
-        const sidebar = document.getElementById('admin-sidebar');
-        if (sidebar) sidebar.classList.toggle('collapsed');
+    // Tampilkan loader lalu buka halaman setelah data ada
+    async init() {
+        const loader = document.getElementById('admin-loader');
+        loader.style.display = 'flex';
+        loader.style.opacity = '1';
+
+        await this.loadTableData();
+        
+        // Hilangkan loader dengan efek fade out
+        loader.style.opacity = '0';
+        setTimeout(() => { loader.style.display = 'none'; }, 500);
     },
 
     async switchTab(tab) {
         this.currentTab = tab;
+        this.currentPage = 1; // Reset ke halaman 1
         
-        // 1. Update UI Aktif (Sinkron)
         document.querySelectorAll('.nav-item, .mobile-item').forEach(el => el.classList.remove('active'));
         document.querySelectorAll(`[data-tab="${tab}"]`).forEach(el => el.classList.add('active'));
 
-        const titleMap = {
-            'users': 'Data Pegawai', 'shifts': 'Titik Lokasi',
-            'attendance': 'Rekap Presensi', 'outstation': 'Dinas Luar'
-        };
-        if (document.getElementById('admin-page-title')) {
-            document.getElementById('admin-page-title').innerText = titleMap[tab];
-        }
-
-        // 2. CEK CACHE: Jika data sudah ada, langsung tampilkan (Instan!)
         if (this.cache[tab]) {
-            console.log(`Menampilkan data ${tab} dari Cache...`);
-            this.renderData(this.cache[tab]);
+            this.renderPage();
         } else {
-            // Jika belum ada, baru tarik dari server
             await this.loadTableData();
         }
     },
 
     async loadTableData() {
-        const body = document.getElementById('admin-table-body');
-        body.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:60px;">Menghubungkan ke Database...</td></tr>';
-
         try {
-            const response = await API.call({ 
-                action: "admin_get_data", 
-                sheet: this.currentTab 
-            });
-
+            const response = await API.call({ action: "admin_get_data", sheet: this.currentTab });
             if (response.success) {
-                // SIMPAN KE CACHE agar perpindahan berikutnya instan
                 this.cache[this.currentTab] = response;
-                this.renderData(response);
+                this.renderPage();
             }
-        } catch (err) {
-            body.innerHTML = '<tr><td colspan="10" style="color:red; text-align:center; padding:50px;">Gagal memuat data.</td></tr>';
-        }
+        } catch (e) { console.error(e); }
     },
 
-    // Fungsi khusus untuk merender tabel tanpa loading ulang
-    renderData(response) {
-        const head = document.getElementById('admin-table-head');
+    renderPage() {
+        const res = this.cache[this.currentTab];
         const body = document.getElementById('admin-table-body');
+        const head = document.getElementById('admin-table-head');
+        
+        // Header Render
+        let hHtml = '<tr>';
+        res.headers.forEach(h => hHtml += `<th style="padding:15px; text-align:left; color:#999; font-size:10px;">${h.toUpperCase()}</th>`);
+        hHtml += '<th style="text-align:center;">AKSI</th></tr>';
+        head.innerHTML = hHtml;
 
-        // Render Header
-        let headHtml = '<tr>';
-        response.headers.forEach(h => {
-            headHtml += `<th style="padding:15px; text-align:left;">${h.replace(/_/g, ' ')}</th>`;
-        });
-        headHtml += '<th style="padding:15px; text-align:center;">AKSI</th></tr>';
-        head.innerHTML = headHtml;
+        // Pagination Logic
+        const start = (this.currentPage - 1) * this.rowsPerPage;
+        const end = start + this.rowsPerPage;
+        const pagedData = res.data.slice(start, end);
 
-        // Render Body
-        let bodyHtml = '';
-        response.data.forEach((row) => {
-            bodyHtml += `<tr style="border-bottom:1px solid #f8f8f8;">`;
-            row.forEach(cell => {
-                bodyHtml += `<td style="padding:15px;">${cell || '-'}</td>`;
-            });
-            bodyHtml += `
-                <td style="padding:15px; text-align:center; display:flex; gap:8px; justify-content:center;">
-                    <button class="btn-edit"><i data-lucide="edit-2" style="width:14px;"></i></button>
-                    <button class="btn-del"><i data-lucide="trash" style="width:14px;"></i></button>
-                </td>
-            </tr>`;
+        let bHtml = '';
+        pagedData.forEach(row => {
+            bHtml += `<tr style="border-bottom:1px solid #f8f8f8;">`;
+            row.forEach(cell => bHtml += `<td style="padding:15px; font-weight:600;">${cell || '-'}</td>`);
+            bHtml += `<td style="padding:15px; text-align:center;">...</td></tr>`;
         });
-        body.innerHTML = bodyHtml;
+        body.innerHTML = bHtml;
+
+        // Update Info & Tombol
+        document.getElementById('admin-page-info').innerText = `Halaman ${this.currentPage} dari ${Math.ceil(res.data.length / this.rowsPerPage)}`;
+        document.getElementById('admin-prev-btn').disabled = this.currentPage === 1;
+        document.getElementById('admin-next-btn').disabled = end >= res.data.length;
+        
         if (window.lucide) lucide.createIcons();
     },
 
-    // Tambahkan tombol refresh manual jika user ingin update data terbaru
-    async refreshData() {
-        this.cache = {}; // Kosongkan cache
-        await this.loadTableData();
-    }
+    nextPage() { this.currentPage++; this.renderPage(); },
+    prevPage() { this.currentPage--; this.renderPage(); }
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());
