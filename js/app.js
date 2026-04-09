@@ -57,7 +57,7 @@ const App = {
         let pageFile = '';
         let isFullPage = false; 
 
-        // --- 2. LOGIKA RUTE (DIPERKETAT) ---
+        // --- 2. LOGIKA RUTE ---
         if (hash === '#login') {
             if (this.user) {
                 window.location.replace(this.user.Role.toLowerCase() === 'admin' ? '#admin' : '#dashboard');
@@ -72,7 +72,13 @@ const App = {
         } 
         else if (hash === '#admin') {
             if (!this.user) { window.location.replace('#login'); return; }
-            pageFile = 'pages/dashboard-admin.html';
+            pageFile = (this.user.Role.toLowerCase() === 'admin') ? 'pages/dashboard-admin.html' : 'pages/error.html';
+            if (this.user.Role.toLowerCase() !== 'admin') isFullPage = true;
+        }
+            
+        else if (hash === '#download') {
+            pageFile = 'pages/download.html';
+            isFullPage = true; // Agar background merah sembunyi
         }
         else {
             pageFile = 'pages/error.html';
